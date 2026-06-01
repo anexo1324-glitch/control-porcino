@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
+/* ✔️ VARIABLES APP */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #000000;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ✔️ HTML FULLSCREEN */
+html {
+  background: #ffffff;
+  width: 100%;
+  height: 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ✔️ BODY FULLSCREEN */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  margin: 0;
+
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  background: #ffffff;
+  color: #000000;
+
   font-family: Arial, Helvetica, sans-serif;
+
+  overflow-x: hidden;
+
+  /* ✔️ SAFE AREA IPHONE */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+
+  /* ✔️ evita zoom raro */
+  -webkit-text-size-adjust: 100%;
+
+  /* ✔️ sensación app */
+  overscroll-behavior: none;
+}
+
+/* ✔️ NEXT ROOT */
+#__next {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ✔️ INPUTS IOS */
+input,
+textarea,
+select {
+  font-size: 16px;
 }
