@@ -36,17 +36,18 @@ export default function Home() {
         <Image
           src="/logo.png"
           alt="Logo"
-          width={180}
-          height={180}
+          width={300}
+          height={300}
           className="mx-auto"
           priority
         />
 
         <h1 className="text-3xl font-bold text-green-700 mt-6">
-          PORCÍCOLA EL MIRADOR
+          PORCÍCOLA 
+          EL MIRADOR
         </h1>
 
-        <p className="text-green-500 mt-2">
+        <p className="text-black font-bold mt-2">
           Gestión Inteligente
         </p>
 

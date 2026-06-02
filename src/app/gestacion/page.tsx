@@ -10,6 +10,7 @@ export default function Gestacion() {
   const [buscar, setBuscar] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("Todos");
   const [mostrarMenuFlotante, setMostrarMenuFlotante] = useState(false);
+  const [estiloTarjetas, setEstiloTarjetas] = useState<"normal" | "original">("original");
 
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
   const [editIndex, setEditIndex] = useState<number | null>(null);
@@ -32,7 +33,16 @@ export default function Gestacion() {
 
     setCerdas(datos);
     setEstadoFiltro("Todos");
+
+    const estiloGuardado = localStorage.getItem("gestacion-estiloTarjetas");
+    if (estiloGuardado === "original" || estiloGuardado === "normal") {
+      setEstiloTarjetas(estiloGuardado);
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("gestacion-estiloTarjetas", estiloTarjetas);
+  }, [estiloTarjetas]);
 
   // CERRAR MENÚ AL TOCAR FUERA
   useEffect(() => {
@@ -83,9 +93,15 @@ export default function Gestacion() {
   function confirmarEliminarCerda() {
     if (confirmDeleteIndex === null) return;
 
+    const cerdaAEliminar = cerdas[confirmDeleteIndex];
+
+    // Eliminar cerda de la lista
     const nuevas = cerdas.filter((_, i) => i !== confirmDeleteIndex);
 
     guardar(nuevas);
+
+    // Eliminar historial asociado
+    localStorage.removeItem(`historial-${cerdaAEliminar.id}`);
 
     setConfirmDeleteIndex(null);
   }
@@ -173,6 +189,25 @@ export default function Gestacion() {
         return "bg-pink-500 text-white";
       default:
         return "bg-pink-500 text-white";
+    }
+  }
+
+  function obtenerBarraColor(estado?: string) {
+    switch (estado) {
+      case "Gestación":
+        return "from-blue-500 to-blue-400";
+      case "Lactancia":
+        return "from-green-500 to-green-400";
+      case "Próxima a Celo":
+      case "Celo":
+        return "from-yellow-500 to-yellow-400";
+      case "Aborto":
+      case "Tratamiento":
+        return "from-pink-500 to-pink-400";
+      case "Baja":
+        return "from-red-500 to-red-400";
+      default:
+        return "from-pink-500 to-pink-400";
     }
   }
 
@@ -315,21 +350,34 @@ export default function Gestacion() {
   return (
     <main className="min-h-screen bg-white text-black p-4">
 
-      <div className="max-w-md mx-auto">
+      <div className="max-w-3xl mx-auto">
 
         {/* HEADER */}
         <div className="mb-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-4xl font-bold text-pink-600">
+                Gestación
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Inventario hembras
+              </p>
+            </div>
 
-          <div>
-            <h1 className="text-4xl font-bold text-pink-600">
-              Gestación
-            </h1>
-
-            <p className="text-gray-600 mt-2">
-              Inventario hembras
-            </p>
+            <button
+              onClick={() =>
+                setEstiloTarjetas(
+                  estiloTarjetas === "normal"
+                    ? "original"
+                    : "normal"
+                )
+              }
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-pink-500 bg-white text-lg font-bold text-pink-600 shadow-sm transition hover:bg-pink-50"
+              aria-label="Cambiar estilo de tarjetas"
+            >
+              ⊞
+            </button>
           </div>
-
         </div>
 
         {/* BUSCADOR */}
@@ -353,9 +401,8 @@ export default function Gestacion() {
           "
         />
 
-
         {/* CARDS */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`${estiloTarjetas === "original" ? "space-y-2" : "grid grid-cols-2 gap-3"}`}>
 
           {filtradas.map((cerda, index) => {
             const historialRaw = JSON.parse(
@@ -370,6 +417,115 @@ export default function Gestacion() {
               ? obtenerEstadoPorRegistro(ultimoRegistro.tipo)
               : "Activa";
             const msgStyles = obtenerMensajeStyles(estadoLabel);
+
+            if (estiloTarjetas === "original") {
+              return (
+                <div
+                  key={index}
+                  onClick={() => router.push(`/cerda/${cerda.id}`)}
+                  className="w-full relative overflow-hidden rounded-[32px] p-2.5 min-h-[110px] text-left shadow-xl active:scale-95 transition duration-200 bg-white cursor-pointer"
+                >
+                  <div className={`absolute inset-y-0 left-0 w-2 rounded-r-3xl bg-gradient-to-b ${obtenerBarraColor(estadoLabel)}`} />
+                  <div className="relative flex h-full flex-col justify-between gap-2 pl-4 pr-10">
+                    <div>
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="flex-1">
+                          <h2 className="text-lg font-bold text-black">{cerda.id}</h2>
+                          <p className="text-gray-500 text-sm mt-1 leading-tight">{cerda.raza}</p>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] whitespace-nowrap ${obtenerEstadoStyles(estadoLabel)}`}>
+                          {estadoLabel}
+                        </span>
+                      </div>
+
+                      {ultimoRegistro?.mensaje && (
+                        <div className={`mt-2 ${msgStyles.bg} border ${msgStyles.border} p-2 rounded-2xl`}>
+                          <p className={`${msgStyles.title} text-xs font-medium`}>Mensaje</p>
+                          <p className={`${msgStyles.content} font-bold mt-1 text-sm`}>{ultimoRegistro.mensaje}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[10px] font-medium uppercase tracking-[0.25em] text-slate-400">{index + 1}/{filtradas.length}</div>
+                    </div>
+                  </div>
+
+                  <button
+                    aria-haspopup="true"
+                    aria-expanded={menuIndex === index}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuIndex(menuIndex === index ? null : index);
+                    }}
+                    className="
+                      absolute
+                      top-2
+                      right-2
+                      text-black
+                      text-2xl
+                      font-bold
+                      px-2
+                      hover:text-pink-600
+                      transition-colors
+                    "
+                    aria-label={`Abrir menú para ${cerda.id}`}
+                  >
+                    ⋯
+                  </button>
+
+                  {menuIndex === index && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="
+                        absolute
+                        top-10
+                        right-2
+                        bg-white
+                        border
+                        border-gray-300
+                        rounded-xl
+                        shadow-lg
+                        overflow-hidden
+                        z-50
+                        text-black
+                      "
+                    >
+                      <button
+                        onClick={() => editarCerda(index)}
+                        className="
+                          block
+                          px-4
+                          py-2
+                          text-sm
+                          hover:bg-pink-100
+                          w-full
+                          text-left
+                        "
+                        aria-label={`Editar ${cerda.id}`}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => eliminarCerda(index)}
+                        className="
+                          block
+                          px-4
+                          py-2
+                          text-sm
+                          hover:bg-red-100
+                          w-full
+                          text-left
+                        "
+                        aria-label={`Eliminar ${cerda.id}`}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <div
@@ -390,35 +546,24 @@ export default function Gestacion() {
                   transition
                 "
               >
-
-                {/* CONTENIDO */}
                 <h2 className="text-lg font-bold">{cerda.id}</h2>
-
                 <p className="text-gray-600 text-sm">{cerda.raza}</p>
-
                 <p className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold mt-1 ${obtenerEstadoStyles(estadoLabel)}`}>
                   {estadoLabel}
                 </p>
 
                 {ultimoRegistro?.mensaje && (
                   <div className={`mt-3 ${msgStyles.bg} border ${msgStyles.border} p-3 rounded-2xl`}>
-                    <p className={`${msgStyles.title} text-sm font-medium`}>
-                      Mensaje
-                    </p>
-
-                    <p className={`${msgStyles.content} font-bold mt-1`}>
-                      {ultimoRegistro.mensaje}
-                    </p>
+                    <p className={`${msgStyles.title} text-sm font-medium`}>Mensaje</p>
+                    <p className={`${msgStyles.content} font-bold mt-1`}>{ultimoRegistro.mensaje}</p>
                   </div>
                 )}
 
-                {/* BOTÓN ⋯ */}
                 <button
                   aria-haspopup="true"
                   aria-expanded={menuIndex === index}
                   onClick={(e) => {
                     e.stopPropagation();
-
                     setMenuIndex(menuIndex === index ? null : index);
                   }}
                   className="
@@ -437,9 +582,7 @@ export default function Gestacion() {
                   ⋯
                 </button>
 
-                {/* MENÚ */}
                 {menuIndex === index && (
-
                   <div
                     onClick={(e) => e.stopPropagation()}
                     className="
@@ -456,7 +599,6 @@ export default function Gestacion() {
                       text-black
                     "
                   >
-
                     <button
                       onClick={() => editarCerda(index)}
                       className="
@@ -472,7 +614,6 @@ export default function Gestacion() {
                     >
                       Editar
                     </button>
-
                     <button
                       onClick={() => eliminarCerda(index)}
                       className="
@@ -488,11 +629,8 @@ export default function Gestacion() {
                     >
                       Eliminar
                     </button>
-
                   </div>
-
                 )}
-
               </div>
             );
           })}
@@ -560,6 +698,36 @@ export default function Gestacion() {
                     <option>Tratamiento</option>
                   </select>
                 </div>
+
+                <div className="border-t border-gray-100" />
+
+                <button
+                  onClick={() => {
+                    setEstiloTarjetas(
+                      estiloTarjetas === "normal"
+                        ? "original"
+                        : "normal"
+                    );
+                    setMostrarMenuFlotante(false);
+                  }}
+                  className="block w-full px-6 py-4 text-left hover:bg-slate-50 transition-colors group"
+                  aria-label="Cambiar estilo de tarjetas"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                      <span className="text-slate-600 text-lg">⊞</span>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-black">
+                        Cambiar estilo
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {estiloTarjetas === "original" ? "Tarjetas" : "Tarjetas cuadriculadas"}
+                      </p>
+                    </div>
+                  </div>
+                </button>
 
                 <div className="border-t border-gray-100" />
 

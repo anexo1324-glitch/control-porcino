@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/useToast";
+import ToastContainer from "@/components/ToastContainer";
+import { sendPushNotification, requestNotificationPermission } from "@/utils/notifications";
 
 export default function Tareas() {
   const router = useRouter();
@@ -9,9 +12,11 @@ export default function Tareas() {
   const [tareas, setTareas] = useState<any[]>([]);
   const [filtro, setFiltro] = useState("Todas");
   const [buscar, setBuscar] = useState("");
+  const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
     generarTareas();
+    requestNotificationPermission();
   }, []);
 
   function calcularDiasEntre(fechaInicio: string, fechaFin: string) {
@@ -28,6 +33,7 @@ export default function Tareas() {
 
     const nuevasTareas: any[] = [];
     const hoy = new Date().toISOString().split("T")[0];
+    const fechaHoy = new Date(hoy);
 
     cerdas.forEach((cerda: any) => {
       const historial = JSON.parse(
@@ -37,136 +43,385 @@ export default function Tareas() {
       if (!Array.isArray(historial) || historial.length === 0) return;
 
       const ultimoRegistro = historial[0];
-      const diasDesdeUltimo = calcularDiasEntre(
-        ultimoRegistro.fecha,
-        hoy
-      );
+      const diasDesdeUltimo = calcularDiasEntre(ultimoRegistro.fecha, hoy);
 
-      // REGLA 1: Revisar celos próximos
-      if (
-        ultimoRegistro.tipo === "Destete" &&
-        diasDesdeUltimo >= 0 &&
-        diasDesdeUltimo <= 5
-      ) {
-        nuevasTareas.push({
-          id: cerda.id,
-          tipo: "Revisar Celo",
-          prioridad: "alta",
-          descripcion: `Está próxima a entrar en celo después del destete`,
-          dias: diasDesdeUltimo,
-          fecha: ultimoRegistro.fecha,
-        });
-      }
+      // EXCLUSIÓN: No generar tareas para cerdas inactivas
+      if (["Baja", "Vendida", "Muerta"].includes(ultimoRegistro.tipo)) return;
 
-      // REGLA 2: Destetes próximos (21-28 días después de parto)
-      const registroParto = historial.find(
-        (r: any) => r.tipo === "Parto"
-      );
-      if (registroParto) {
-        const diasDesdeParto = calcularDiasEntre(
-          registroParto.fecha,
-          hoy
-        );
-        if (diasDesdeParto >= 20 && diasDesdeParto <= 28) {
+      // ===== REGLAS BASADAS EN INSEMINACIÓN =====
+
+      const regInseminacion = historial.find((r: any) => r.tipo === "Inseminación");
+      if (regInseminacion) {
+        const diasDesdeInseminacion = calcularDiasEntre(regInseminacion.fecha, hoy);
+
+        // REGLA 1: Confirmación de gestación (Día 25-35)
+        if (diasDesdeInseminacion >= 25 && diasDesdeInseminacion <= 35) {
           nuevasTareas.push({
             id: cerda.id,
-            tipo: "Destete Próximo",
+            tipo: "Confirmación de gestación",
             prioridad: "media",
-            descripcion: `Está en lactancia y es próximo el destete (${diasDesdeParto} días)`,
-            dias: diasDesdeParto,
-            fecha: registroParto.fecha,
+            descripcion: "Realizar chequeo o ecografía para confirmar gestación",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
           });
         }
-      }
 
-      // REGLA 3: Partos estimados
-      const registroInseminacion = historial.find(
-        (r: any) => r.tipo === "Inseminación"
-      );
-      if (registroInseminacion && registroInseminacion.partoEstimado) {
-        const diasAlParto = calcularDiasEntre(
-          hoy,
-          registroInseminacion.partoEstimado
-        );
-        if (diasAlParto >= -3 && diasAlParto <= 7) {
+        // REGLA 2: Posible repetición de celo (Día 18-24)
+        const tieneParto = historial.some((r: any) => r.tipo === "Parto");
+        const tieneAborto = historial.some((r: any) => r.tipo === "Aborto");
+        const tieneNuevaInseminacion = historial.filter((r: any) => r.tipo === "Inseminación").length > 1;
+
+        if (
+          diasDesdeInseminacion >= 18 &&
+          diasDesdeInseminacion <= 24 &&
+          !tieneParto &&
+          !tieneAborto &&
+          !tieneNuevaInseminacion
+        ) {
           nuevasTareas.push({
             id: cerda.id,
-            tipo: "Parto Estimado",
+            tipo: "Posible repetición de celo",
             prioridad: "alta",
-            descripcion: `Parto estimado para el ${registroInseminacion.partoEstimado} (${Math.abs(diasAlParto)} días)`,
-            dias: diasAlParto,
-            fecha: registroInseminacion.partoEstimado,
+            descripcion: "Verificar retorno a celo",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
+          });
+        }
+
+        // REGLA 3: Desparasitación gestacional (Día 70-90)
+        const tieneDesparasitacion = historial.some(
+          (r: any) =>
+            r.tipo === "Desparasitación" &&
+            calcularDiasEntre(regInseminacion.fecha, r.fecha) > 0
+        );
+        if (
+          diasDesdeInseminacion >= 70 &&
+          diasDesdeInseminacion <= 90 &&
+          !tieneDesparasitacion
+        ) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Desparasitación gestacional",
+            prioridad: "media",
+            descripcion: "Aplicar desparasitante durante la gestación",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
+          });
+        }
+
+        // REGLA 4: Monitoreo preparto (Día 100-109)
+        if (diasDesdeInseminacion >= 100 && diasDesdeInseminacion <= 109) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Monitoreo preparto",
+            prioridad: "alta",
+            descripcion: "Vigilar signos de proximidad al parto",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
+          });
+        }
+
+        // REGLA 5: Parto próximo (Día 110-114)
+        if (diasDesdeInseminacion >= 110 && diasDesdeInseminacion <= 114) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Parto próximo",
+            prioridad: "critica",
+            descripcion: "Preparar maternidad y supervisión",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
+          });
+        }
+
+        // REGLA 6: Parto retrasado (Día 115+)
+        if (diasDesdeInseminacion >= 115 && !tieneParto) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Parto retrasado",
+            prioridad: "critica",
+            descripcion: "Revisar inmediatamente - Gestación prolongada",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
+          });
+        }
+
+        // REGLA 19: Preparación de maternidad (Día 105-110)
+        if (diasDesdeInseminacion >= 105 && diasDesdeInseminacion <= 110) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Traslado a maternidad",
+            prioridad: "alta",
+            descripcion: "Preparar instalaciones para parto",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
+          });
+        }
+
+        // REGLA 18: Gestación sin confirmar (>35 días sin confirmación)
+        const confirmacionGestacion = historial.find(
+          (r: any) => r.tipo === "Confirmación de Gestación"
+        );
+        if (diasDesdeInseminacion > 35 && !confirmacionGestacion && !tieneParto) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Gestación sin confirmar",
+            prioridad: "alta",
+            descripcion: "Revisar estado reproductivo",
+            dias: diasDesdeInseminacion,
+            fecha: regInseminacion.fecha,
           });
         }
       }
 
-      // REGLA 4: Tratamientos activos
-      const registroTratamiento = historial.find(
-        (r: any) => r.tipo === "Tratamiento"
-      );
-      if (registroTratamiento && diasDesdeUltimo <= 14) {
+      // ===== REGLAS BASADAS EN PARTO =====
+
+      const regParto = historial.find((r: any) => r.tipo === "Parto");
+      if (regParto) {
+        const diasDesdeParto = calcularDiasEntre(regParto.fecha, hoy);
+
+        // REGLA 7: Revisión postparto (Día 1-5)
+        if (diasDesdeParto >= 1 && diasDesdeParto <= 5) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Revisión postparto",
+            prioridad: "media",
+            descripcion: "Evaluar estado de la cerda y la camada",
+            dias: diasDesdeParto,
+            fecha: regParto.fecha,
+          });
+        }
+
+        // REGLA 8: Vacuna Parvo-Lepto (Día 10-14)
+        const tieneParvoLepto = historial.some(
+          (r: any) =>
+            r.tipo === "Parvo-Lepto" &&
+            calcularDiasEntre(regParto.fecha, r.fecha) > 0
+        );
+        if (diasDesdeParto >= 10 && diasDesdeParto <= 14 && !tieneParvoLepto) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Vacuna Parvo-Lepto",
+            prioridad: "media",
+            descripcion: "Aplicar refuerzo reproductivo",
+            dias: diasDesdeParto,
+            fecha: regParto.fecha,
+          });
+        }
+
+        // REGLA 9: Destete próximo (Día 21-28)
+        if (diasDesdeParto >= 21 && diasDesdeParto <= 28) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Destete próximo",
+            prioridad: "media",
+            descripcion: "Programar destete de la camada",
+            dias: diasDesdeParto,
+            fecha: regParto.fecha,
+          });
+        }
+      }
+
+      // ===== REGLAS BASADAS EN DESTETE =====
+
+      const regDestete = historial.find((r: any) => r.tipo === "Destete");
+      if (regDestete) {
+        const diasDesdeDestete = calcularDiasEntre(regDestete.fecha, hoy);
+
+        // REGLA 10: Próximo celo (Día 3-7)
+        if (diasDesdeDestete >= 3 && diasDesdeDestete <= 7) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Detección de celo",
+            prioridad: "alta",
+            descripcion: "Monitorear aparición de celo postdestete",
+            dias: diasDesdeDestete,
+            fecha: regDestete.fecha,
+          });
+        }
+      }
+
+      // ===== REGLAS BASADAS EN CELO =====
+
+      const regCelo = historial.find((r: any) => r.tipo === "Celo");
+      if (regCelo) {
+        const diasDesdeCelo = calcularDiasEntre(regCelo.fecha, hoy);
+
+        // REGLA 11: Inseminación pendiente (Día 0-10)
+        if (diasDesdeCelo >= 0 && diasDesdeCelo <= 10) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Inseminación pendiente",
+            prioridad: "alta",
+            descripcion: "Programar inseminación",
+            dias: diasDesdeCelo,
+            fecha: regCelo.fecha,
+          });
+        }
+      }
+
+      // ===== REGLAS BASADAS EN TRATAMIENTO =====
+
+      const regTratamiento = historial.find((r: any) => r.tipo === "Tratamiento");
+      if (regTratamiento && diasDesdeUltimo <= 14) {
+        // REGLA 12: Seguimiento de tratamiento (14 días)
         nuevasTareas.push({
           id: cerda.id,
-          tipo: "Seguimiento Tratamiento",
+          tipo: "Seguimiento sanitario",
           prioridad: "media",
-          descripcion: `Tratamiento registrado hace ${diasDesdeUltimo} días`,
+          descripcion: "Verificar evolución del tratamiento",
           dias: diasDesdeUltimo,
-          fecha: registroTratamiento.fecha,
+          fecha: regTratamiento.fecha,
         });
       }
 
-      // REGLA 5: Chequeos rutinarios de gestación
-      if (
-        ultimoRegistro.tipo === "Inseminación" &&
-        diasDesdeUltimo >= 25 &&
-        diasDesdeUltimo <= 35
-      ) {
+      // ===== REGLAS BASADAS EN VACUNACIÓN =====
+
+      const regVacunacion = historial.find((r: any) => r.tipo === "Vacunación");
+      if (regVacunacion) {
+        const diasDesdeVacunacion = calcularDiasEntre(regVacunacion.fecha, hoy);
+        // REGLA 13: Vacunación programada (cada 180 días)
+        if (diasDesdeVacunacion >= 180 && diasDesdeVacunacion <= 190) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Vacunación programada",
+            prioridad: "media",
+            descripcion: "Mantener plan sanitario vigente",
+            dias: diasDesdeVacunacion,
+            fecha: regVacunacion.fecha,
+          });
+        }
+      }
+
+      // ===== REGLAS BASADAS EN DESPARASITACIÓN =====
+
+      const regDesparasitacion = historial.find((r: any) => r.tipo === "Desparasitación");
+      if (regDesparasitacion) {
+        const diasDesdeDesparasitacion = calcularDiasEntre(regDesparasitacion.fecha, hoy);
+        // REGLA 14: Desparasitación programada (cada 120 días)
+        if (diasDesdeDesparasitacion >= 120 && diasDesdeDesparasitacion <= 130) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Desparasitación programada",
+            prioridad: "media",
+            descripcion: "Mantener control parasitario",
+            dias: diasDesdeDesparasitacion,
+            fecha: regDesparasitacion.fecha,
+          });
+        }
+      }
+
+      // ===== REGLAS GENERALES DE INACTIVIDAD =====
+
+      // REGLA 15: Sin registros recientes (>30 días)
+      if (diasDesdeUltimo > 30 && diasDesdeUltimo <= 60) {
         nuevasTareas.push({
           id: cerda.id,
-          tipo: "Chequeo Gestación",
+          tipo: "Actualizar información",
           prioridad: "baja",
-          descripcion: `Hacer chequeo de confirmación de gestación`,
+          descripcion: "No existen registros recientes",
           dias: diasDesdeUltimo,
           fecha: ultimoRegistro.fecha,
         });
       }
 
-      // REGLA 6: Monitoreo de gestación tardía
-      if (
-        ultimoRegistro.tipo === "Inseminación" &&
-        diasDesdeUltimo >= 100 &&
-        diasDesdeUltimo <= 110
-      ) {
+      // REGLA 16: Cerda inactiva (>60 días)
+      if (diasDesdeUltimo > 60) {
         nuevasTareas.push({
           id: cerda.id,
-          tipo: "Monitoreo Pre-Parto",
-          prioridad: "alta",
-          descripcion: `Gestación avanzada, preparar para parto inminente`,
+          tipo: "Revisar estado productivo",
+          prioridad: "media",
+          descripcion: "Verificar situación reproductiva",
           dias: diasDesdeUltimo,
           fecha: ultimoRegistro.fecha,
         });
+      }
+
+      // ===== REGLAS ADICIONALES VETERINARIAS =====
+
+      // Detectar múltiples abortos consecutivos
+      const abortos = historial.filter((r: any) => r.tipo === "Aborto");
+      if (abortos.length >= 2) {
+        const dos_ultimos = abortos.slice(0, 2);
+        if (
+          calcularDiasEntre(dos_ultimos[1].fecha, dos_ultimos[0].fecha) <= 180
+        ) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Evaluación reproductiva",
+            prioridad: "alta",
+            descripcion: "Múltiples abortos detectados - Revisar continuidad en el plantel",
+            dias: 0,
+            fecha: hoy,
+          });
+        }
+      }
+
+      // Detectar múltiples repeticiones de celo
+      const celos = historial.filter((r: any) => r.tipo === "Celo");
+      if (celos.length >= 3) {
+        const tres_ultimos = celos.slice(0, 3);
+        if (
+          calcularDiasEntre(tres_ultimos[2].fecha, tres_ultimos[0].fecha) <= 90
+        ) {
+          nuevasTareas.push({
+            id: cerda.id,
+            tipo: "Evaluación reproductiva",
+            prioridad: "alta",
+            descripcion: "Repeticiones de celo consecutivas - Revisar continuidad en el plantel",
+            dias: 0,
+            fecha: hoy,
+          });
+        }
       }
     });
 
-    // Ordenar por prioridad y días
-    const prioridadNum = {
-      alta: 1,
-      media: 2,
-      baja: 3,
+    // Remover duplicados por tipo y cerda
+    const tareasUnicas = nuevasTareas.filter((tarea, index, self) =>
+      index === self.findIndex((t) => t.id === tarea.id && t.tipo === tarea.tipo)
+    );
+
+    // Ordenar por: Prioridad -> Vencidas -> Hoy -> Próx 7 días -> Próx 30 días -> Resto
+    const prioridadNum = { critica: 0, alta: 1, media: 2, baja: 3 };
+    const calcularOrden = (tarea: any) => {
+      if (tarea.dias < 0) return 0; // Vencidas
+      if (tarea.dias === 0) return 1; // Hoy
+      if (tarea.dias <= 7) return 2; // Próximos 7 días
+      if (tarea.dias <= 30) return 3; // Próximos 30 días
+      return 4; // Resto
     };
 
-    nuevasTareas.sort((a, b) => {
-      if (prioridadNum[a.prioridad as keyof typeof prioridadNum] !== 
-          prioridadNum[b.prioridad as keyof typeof prioridadNum]) {
-        return (
-          prioridadNum[a.prioridad as keyof typeof prioridadNum] -
-          prioridadNum[b.prioridad as keyof typeof prioridadNum]
-        );
-      }
+    tareasUnicas.sort((a, b) => {
+      const prioridadA = prioridadNum[a.prioridad as keyof typeof prioridadNum];
+      const prioridadB = prioridadNum[b.prioridad as keyof typeof prioridadNum];
+      if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+
+      const ordenA = calcularOrden(a);
+      const ordenB = calcularOrden(b);
+      if (ordenA !== ordenB) return ordenA - ordenB;
+
       return a.dias - b.dias;
     });
 
-    setTareas(nuevasTareas);
+    setTareas(tareasUnicas);
+
+    // Mostrar notificaciones para tareas críticas
+    const tareasCriticas = tareasUnicas.filter((t) => t.prioridad === "critica");
+    if (tareasCriticas.length > 0) {
+      addToast(
+        "🔴 Alertas Críticas",
+        `${tareasCriticas.length} tarea(s) crítica(s) requiere(n) acción inmediata`,
+        "error",
+        8000
+      );
+      
+      // Enviar notificación push para cada tarea crítica
+      tareasCriticas.forEach((tarea) => {
+        sendPushNotification(`🔴 ${tarea.tipo}`, {
+          body: `${tarea.id}: ${tarea.descripcion}`,
+          tag: `critica-${tarea.id}-${tarea.tipo}`,
+        });
+      });
+    }
   }
 
   const tiposUnicos = [
@@ -186,8 +441,10 @@ export default function Tareas() {
 
   const obtenerColorPrioridad = (prioridad: string) => {
     switch (prioridad) {
+      case "critica":
+        return "bg-red-100 border-red-300 text-red-800";
       case "alta":
-        return "bg-red-50 border-red-200 text-red-700";
+        return "bg-orange-50 border-orange-200 text-orange-700";
       case "media":
         return "bg-yellow-50 border-yellow-200 text-yellow-700";
       case "baja":
@@ -199,8 +456,10 @@ export default function Tareas() {
 
   const obtenerIconoPrioridad = (prioridad: string) => {
     switch (prioridad) {
-      case "alta":
+      case "critica":
         return "🔴";
+      case "alta":
+        return "🟠";
       case "media":
         return "🟡";
       case "baja":
@@ -334,6 +593,8 @@ export default function Tareas() {
           ))}
         </div>
       </div>
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </main>
   );
 }
