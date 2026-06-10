@@ -1,7 +1,8 @@
+import PageShell from "@/components/PageShell";
+
 export default function engorde() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      
+    <PageShell bgColor="#111827" className="flex items-center justify-center text-white">
       <div className="text-center px-6">
 
         <h1 className="text-5xl font-bold text-yellow-400">
@@ -18,6 +19,6 @@ export default function engorde() {
 
       </div>
 
-    </main>
+    </PageShell>
   );
 }

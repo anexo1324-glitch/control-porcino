@@ -8,9 +8,13 @@
 
 /* ✔️ HTML FULLSCREEN */
 html {
-  background: #ffffff;
+  background: var(--page-bg, #ffffff);
   width: 100%;
   height: 100%;
+  color: var(--page-fg, #000000);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow-y: hidden;
 }
 
 /* ✔️ BODY FULLSCREEN */
@@ -21,12 +25,13 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
 
-  background: #ffffff;
-  color: #000000;
+  background: var(--page-bg, #ffffff);
+  color: var(--page-fg, #000000);
 
   font-family: Arial, Helvetica, sans-serif;
 
   overflow-x: hidden;
+  overflow-y: auto;
 
   /* ✔️ SAFE AREA IPHONE */
   padding-top: env(safe-area-inset-top);
@@ -39,6 +44,48 @@ body {
 
   /* ✔️ sensación app */
   overscroll-behavior: none;
+  overscroll-behavior-y: none;
+  -webkit-user-select: none;
+  user-select: none;
+
+  /* ✔️ OCULTAR SCROLLBAR */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ✔️ OCULTAR SCROLLBAR WEBKIT */
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ✔️ OCULTAR SCROLLBAR HTML */
+html::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ✔️ DESACTIVAR PINCH ZOOM */
+* {
+  touch-action: manipulation;
+}
+
+
+/* ✔️ DESACTIVAR EFECTO BOUNCE/PULL-TO-REFRESH */
+html {
+  overscroll-behavior: none;
+  overscroll-behavior-y: contain;
+}
+
+body {
+  overscroll-behavior: none;
+  overscroll-behavior-y: contain;
+}
+
+#__next {
+  overscroll-behavior-y: contain;
 }
 
 /* ✔️ NEXT ROOT */

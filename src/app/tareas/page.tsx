@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/useToast";
+import PageShell from "@/components/PageShell";
 import ToastContainer from "@/components/ToastContainer";
 import { sendPushNotification, requestNotificationPermission } from "@/utils/notifications";
 
@@ -416,7 +417,7 @@ export default function Tareas() {
       
       // Enviar notificación push para cada tarea crítica
       tareasCriticas.forEach((tarea) => {
-        sendPushNotification(`🔴 ${tarea.tipo}`, {
+        void sendPushNotification(`🔴 ${tarea.tipo}`, {
           body: `${tarea.id}: ${tarea.descripcion}`,
           tag: `critica-${tarea.id}-${tarea.tipo}`,
         });
@@ -470,7 +471,7 @@ export default function Tareas() {
   };
 
   return (
-    <main className="min-h-screen bg-white text-black p-4">
+    <PageShell bgColor="#ffffff" className="p-4 text-slate-900">
       <div className="max-w-md mx-auto">
         {/* HEADER */}
         <div className="mb-6 flex items-center justify-between">
@@ -595,6 +596,6 @@ export default function Tareas() {
       </div>
 
       <ToastContainer toasts={toasts} removeToast={removeToast} />
-    </main>
+    </PageShell>
   );
 }

@@ -20,12 +20,16 @@ export async function requestNotificationPermission() {
   }
 
   if (Notification.permission === 'granted') {
+    await registerServiceWorker();
     return true;
   }
 
   if (Notification.permission !== 'denied') {
     try {
       const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        await registerServiceWorker();
+      }
       return permission === 'granted';
     } catch (error) {
       console.error('Error al solicitar permiso de notificación:', error);
@@ -37,15 +41,54 @@ export async function requestNotificationPermission() {
 }
 
 /**
+ * Registra el service worker PWA si está disponible.
+ */
+export async function registerServiceWorker() {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    return registration;
+  } catch (error) {
+    console.error('Error al registrar el service worker:', error);
+    return null;
+  }
+}
+
+/**
  * Envía notificación push del navegador
  */
-export function sendPushNotification(title: string, options?: NotificationOptions) {
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, {
-      icon: '/icon-192x192.png',
-      ...options,
-    });
+export async function sendPushNotification(
+  title: string,
+  options?: NotificationOptions
+) {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return;
   }
+
+  if (Notification.permission !== 'granted') {
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (registration?.showNotification) {
+      await registration.showNotification(title, {
+        icon: '/icon-192x192.png',
+        ...options,
+      });
+      return;
+    }
+  } catch (error) {
+    console.error('Error usando service worker para notificación:', error);
+  }
+
+  new Notification(title, {
+    icon: '/icon-192x192.png',
+    ...options,
+  });
 }
 
 /**

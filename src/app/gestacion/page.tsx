@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import PageShell from "@/components/PageShell";
 
 export default function Gestacion() {
   const router = useRouter();
@@ -348,7 +349,7 @@ export default function Gestacion() {
   });
 
   return (
-    <main className="min-h-screen bg-white text-black p-4">
+    <PageShell bgColor="#ffffff" className="p-4 text-slate-900">
 
       <div className="max-w-3xl mx-auto">
 
@@ -1068,6 +1069,6 @@ export default function Gestacion() {
 
       </div>
 
-    </main>
+    </PageShell>
   );
 }

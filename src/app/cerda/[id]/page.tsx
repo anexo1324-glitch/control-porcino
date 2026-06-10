@@ -286,6 +286,22 @@ export default function CerdaDetalle() {
     );
   }
 
+  const estadoActual = obtenerEstadoActual();
+  const estadoClase =
+    estadoActual === "Baja"
+      ? "bg-red-500 text-white"
+      : estadoActual === "Gestación"
+      ? "bg-blue-500 text-white"
+      : estadoActual === "Lactancia"
+      ? "bg-green-500 text-white"
+      : estadoActual === "Próxima a Celo"
+      ? "bg-yellow-500 text-black"
+      : "bg-pink-500 text-white";
+
+  const partoRegistro = registros.find((r) => r.tipo === "Parto");
+  const ultimaInseminacion = registros.find((r) => r.tipo === "Inseminación");
+  const textoParto = partoRegistro?.fecha || ultimaInseminacion?.partoEstimado || "-";
+
   return (
     <main className="min-h-screen bg-[#f5f5f7] p-4">
 
@@ -302,77 +318,31 @@ export default function CerdaDetalle() {
 
           <button
             onClick={() => router.back()}
-            className="
-              bg-white
-              shadow
-              border
-              border-gray-200
-              px-4
-              py-2
-              rounded-2xl
-              text-black
-            "
+            className="bg-white shadow border border-gray-200 px-4 py-2 rounded-2xl text-black"
           >
             ←
           </button>
 
-          <h1 className="text-2xl font-black text-black">
-            {cerda.id}
-          </h1>
+          <h1 className="text-2xl font-black text-black">{cerda.id}</h1>
 
           <div className="relative">
 
             <button
-              onClick={() =>
-                setMostrarMenu(!mostrarMenu)
-              }
-              className="
-                bg-white
-                shadow
-                border
-                border-gray-200
-                px-3
-                py-2
-                rounded-2xl
-                text-black
-              "
+              onClick={() => setMostrarMenu(!mostrarMenu)}
+              className="bg-white shadow border border-gray-200 px-3 py-2 rounded-2xl text-black"
             >
               ⋮
             </button>
 
             {mostrarMenu && (
               <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() =>
-                    setMostrarMenu(false)
-                  }
-                />
+                <div className="fixed inset-0 z-40" onClick={() => setMostrarMenu(false)} />
 
-                <div
-                  className="
-                    absolute
-                    right-0
-                    top-12
-                    bg-white
-                    border
-                    border-gray-200
-                    rounded-2xl
-                    shadow-lg
-                    overflow-hidden
-                    z-50
-                  "
-                >
+                <div className="absolute right-0 top-12 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden z-50">
 
                   <button
                     onClick={eliminarHistorialCompleto}
-                    className="
-                      px-4
-                      py-3
-                      text-red-600
-                      font-bold
-                      whitespace-nowrap
-                    "
+                    className="px-4 py-3 text-red-600 font-bold whitespace-nowrap"
                   >
                     Eliminar historial
                   </button>
@@ -385,79 +355,79 @@ export default function CerdaDetalle() {
 
         </div>
 
-        {/* INFO */}
-        <div
-          className="
-            bg-white
-            rounded-3xl
-            p-5
-            shadow-md
-            border
-            border-pink-100
-          "
-        >
+        {/* INFO: tarjeta estilo lista (avatar, id, raza, stats y actividad) */}
+        <div className="bg-white rounded-3xl p-3 shadow-md border border-gray-100">
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-start gap-3">
 
-            <div>
+            <div className={`w-1 rounded-l-2xl ${
+              estadoActual === "Baja"
+                ? "bg-red-500"
+                : estadoActual === "Gestación"
+                ? "bg-blue-500"
+                : estadoActual === "Lactancia"
+                ? "bg-green-500"
+                : estadoActual === "Próxima a Celo"
+                ? "bg-yellow-500"
+                : "bg-pink-500"
+            }`} />
 
-              <h2 className="text-2xl font-bold text-black">
-                {cerda.raza}
-              </h2>
+            <div className="flex-1 flex items-start gap-4">
 
-              <p
-                className={`mt-1 font-bold ${
-                  obtenerEstadoActual() === "Baja"
-                    ? "text-red-600"
-                    : obtenerEstadoActual() === "Aborto"
-                    ? "text-pink-600"
-                    : "text-green-600"
-                }`}
-              >
-                {obtenerEstadoActual() === "Baja"
-                  ? "BAJA"
-                  : obtenerEstadoActual() === "Aborto"
-                  ? "ABORTO"
-                  : "ACTIVA"}
-              </p>
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full bg-pink-50 border border-pink-100 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-8 w-8 text-pink-500">
+                    <path fill="currentColor" d="M12 2c-1.1 0-2 .9-2 2 0 .5.2 1 .5 1.3C8.8 6 7 7 7 9v1H5c-1.1 0-2 .9-2 2v1c0 1.7 1.3 3 3 3h1v1c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2v-1h1c1.7 0 3-1.3 3-3v-1c0-1.1-.9-2-2-2h-2V9c0-2-1.8-3-3.5-3.7.3-.3.5-.8.5-1.3 0-1.1-.9-2-2-2z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="flex-1">
+
+                <div className="flex justify-between items-start">
+
+                  <div>
+                    <h2 className="text-2xl font-bold text-black">{cerda.id}</h2>
+                    <p className="text-sm text-gray-500 mt-1">{cerda.raza}</p>
+
+                    <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <svg className="h-4 w-4 text-pink-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 10h10M7 14h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <span className="font-medium">Parto:</span>
+                        <span className="text-gray-700">{textoParto}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <svg className="h-4 w-4 text-pink-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+                        <span className="text-gray-700">Lechones: {cerda.lechones ?? "-"}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <svg className="h-4 w-4 text-pink-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7h18M7 21V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <span className="text-gray-700">Jaula: {cerda.jaula ?? "-"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${estadoClase}`}>
+                      {estadoActual.toUpperCase()}
+                    </span>
+
+                    <div className="mt-3 border border-green-100 bg-green-50 p-3 rounded-2xl text-left max-w-xs">
+                      <p className="text-green-700 text-sm font-medium">Próxima actividad</p>
+                      <p className="text-green-900 font-bold">Destete programado</p>
+                      <p className="text-xs text-gray-500">23 Jun — 30 Jun 2026</p>
+                    </div>
+                  </div>
+
+                </div>
+
+                <p className="text-sm text-gray-500 mt-3">{cerda.caracteristicas}</p>
+
+              </div>
 
             </div>
-
-            <span
-              className={`
-                text-white
-                px-3
-                py-1
-                rounded-xl
-                text-sm
-                font-bold
-                ${
-                  obtenerEstadoActual() === "Baja"
-                    ? "bg-red-500"
-                    : obtenerEstadoActual() === "Gestación"
-                    ? "bg-blue-500"
-                    : obtenerEstadoActual() === "Lactancia"
-                    ? "bg-green-500"
-                    : obtenerEstadoActual() === "Próxima a Celo"
-                    ? "bg-yellow-500"
-                    : "bg-pink-500"
-                }
-              `}
-            >
-              {obtenerEstadoActual().toUpperCase()}
-            </span>
-
-          </div>
-
-          <div className="mt-4">
-
-            <p className="text-sm text-gray-500">
-              Características
-            </p>
-
-            <p className="text-black mt-1">
-              {cerda.caracteristicas}
-            </p>
 
           </div>
 
