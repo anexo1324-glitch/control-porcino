@@ -11,21 +11,73 @@ export default function Gestacion() {
   const [buscar, setBuscar] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("Todos");
   const [mostrarMenuFlotante, setMostrarMenuFlotante] = useState(false);
-  const [estiloTarjetas, setEstiloTarjetas] = useState<"normal" | "original">("original");
 
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
+  const [activeTouchIndex, setActiveTouchIndex] = useState<number | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchCurrentX, setTouchCurrentX] = useState<number | null>(null);
+  const [swipedIndex, setSwipedIndex] = useState<number | null>(null);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
+  const [deletePinInput, setDeletePinInput] = useState("");
+  const [deletePinError, setDeletePinError] = useState("");
 
   const [id, setId] = useState("");
   const [idError, setIdError] = useState("");
   const [raza, setRaza] = useState("Camborough");
   const [otraRaza, setOtraRaza] = useState("");
+  const [peso, setPeso] = useState("");
+  const [pesoError, setPesoError] = useState("");
   const [fecha, setFecha] = useState("");
   const [fechaError, setFechaError] = useState("");
+  const [razaError, setRazaError] = useState("");
   const [caracteristicas, setCaracteristicas] = useState("");
 
   const [cerdas, setCerdas] = useState<any[]>([]);
+
+  const DIAS_GESTACION = 114;
+  const MESES = [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ];
+
+  function formatearFechaCorta(fecha: string): string {
+    const d = new Date(fecha);
+    const dia = d.getDate();
+    const mes = MESES[d.getMonth()];
+    const anio = d.getFullYear();
+    return `${mes}-${dia}-${anio}`;
+  }
+
+  function calcularParto(fechaInseminacion: string) {
+    const f = new Date(fechaInseminacion);
+    f.setDate(f.getDate() + DIAS_GESTACION);
+    return f.toISOString().split("T")[0];
+  }
+
+  function calcularDiasEntre(fechaInicio: string, fechaFin: string) {
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    return Math.floor((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function calcularDiasParaParto(fechaInseminacion: string) {
+    const diasDesde = calcularDiasEntre(
+      fechaInseminacion,
+      new Date().toISOString().split("T")[0]
+    );
+    return Math.max(0, DIAS_GESTACION - diasDesde);
+  }
 
   useEffect(() => {
     const datos = JSON.parse(
@@ -34,24 +86,16 @@ export default function Gestacion() {
 
     setCerdas(datos);
     setEstadoFiltro("Todos");
-
-    const estiloGuardado = localStorage.getItem("gestacion-estiloTarjetas");
-    if (estiloGuardado === "original" || estiloGuardado === "normal") {
-      setEstiloTarjetas(estiloGuardado);
-    }
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem("gestacion-estiloTarjetas", estiloTarjetas);
-  }, [estiloTarjetas]);
 
   // CERRAR MENÚ AL TOCAR FUERA
   useEffect(() => {
     function handleClickOutside() {
       setMenuIndex(null);
+      setSwipedIndex(null);
     }
 
-    if (menuIndex !== null) {
+    if (menuIndex !== null || swipedIndex !== null) {
       document.addEventListener(
         "click",
         handleClickOutside
@@ -64,7 +108,7 @@ export default function Gestacion() {
         handleClickOutside
       );
     };
-  }, [menuIndex]);
+  }, [menuIndex, swipedIndex]);
 
   function guardar(nuevas: any[]) {
     setCerdas(nuevas);
@@ -80,8 +124,11 @@ export default function Gestacion() {
     setIdError("");
     setRaza("Camborough");
     setOtraRaza("");
+    setPeso("");
+    setPesoError("");
     setFecha("");
     setFechaError("");
+    setRazaError("");
     setCaracteristicas("");
     setEditIndex(null);
   }
@@ -94,21 +141,28 @@ export default function Gestacion() {
   function confirmarEliminarCerda() {
     if (confirmDeleteIndex === null) return;
 
+    if (deletePinInput !== "0030") {
+      setDeletePinError("Clave incorrecta");
+      return;
+    }
+
     const cerdaAEliminar = cerdas[confirmDeleteIndex];
 
-    // Eliminar cerda de la lista
     const nuevas = cerdas.filter((_, i) => i !== confirmDeleteIndex);
 
     guardar(nuevas);
 
-    // Eliminar historial asociado
     localStorage.removeItem(`historial-${cerdaAEliminar.id}`);
 
     setConfirmDeleteIndex(null);
+    setDeletePinInput("");
+    setDeletePinError("");
   }
 
   function cancelarEliminarCerda() {
     setConfirmDeleteIndex(null);
+    setDeletePinInput("");
+    setDeletePinError("");
   }
 
   function editarCerda(index: number) {
@@ -139,6 +193,7 @@ export default function Gestacion() {
     );
 
     setFecha(c.fecha);
+    setPeso(c.peso || "");
 
     setCaracteristicas(
       c.caracteristicas
@@ -147,6 +202,7 @@ export default function Gestacion() {
     setEditIndex(index);
 
     setMostrarFormulario(true);
+    setSwipedIndex(null);
 
     setMenuIndex(null);
   }
@@ -181,15 +237,17 @@ export default function Gestacion() {
       case "Próxima a Celo":
         return "bg-yellow-500 text-black";
       case "Aborto":
-        return "bg-pink-500 text-white";
+        return "bg-rose-500 text-white";
       case "Baja":
         return "bg-red-500 text-white";
       case "Celo":
         return "bg-yellow-500 text-black";
       case "Tratamiento":
-        return "bg-pink-500 text-white";
+        return "bg-emerald-700 text-white";
+      case "Activa":
+        return "bg-pink-100 text-pink-700";
       default:
-        return "bg-pink-500 text-white";
+        return "bg-slate-300 text-slate-800";
     }
   }
 
@@ -204,15 +262,17 @@ export default function Gestacion() {
         return "from-yellow-500 to-yellow-400";
       case "Aborto":
       case "Tratamiento":
-        return "from-pink-500 to-pink-400";
+        return "from-rose-500 to-rose-400";
       case "Baja":
         return "from-red-500 to-red-400";
+      case "Activa":
+        return "from-pink-200 to-pink-100";
       default:
-        return "from-pink-500 to-pink-400";
+        return "from-emerald-700 to-emerald-500";
     }
   }
 
-  function obtenerMensajeStyles(estado?: string) {
+  function obtenerPanelStyles(estado?: string) {
     switch (estado) {
       case "Gestación":
         return {
@@ -220,6 +280,7 @@ export default function Gestacion() {
           border: "border-blue-200",
           title: "text-blue-700",
           content: "text-blue-900",
+          secondary: "text-blue-600",
         };
       case "Lactancia":
         return {
@@ -227,6 +288,7 @@ export default function Gestacion() {
           border: "border-green-200",
           title: "text-green-700",
           content: "text-green-900",
+          secondary: "text-green-600",
         };
       case "Próxima a Celo":
       case "Celo":
@@ -235,14 +297,16 @@ export default function Gestacion() {
           border: "border-yellow-200",
           title: "text-yellow-700",
           content: "text-yellow-800",
+          secondary: "text-yellow-600",
         };
       case "Aborto":
       case "Tratamiento":
         return {
-          bg: "bg-pink-50",
-          border: "border-pink-200",
-          title: "text-pink-700",
-          content: "text-pink-800",
+          bg: "bg-rose-50",
+          border: "border-rose-200",
+          title: "text-rose-700",
+          content: "text-rose-800",
+          secondary: "text-rose-600",
         };
       case "Baja":
         return {
@@ -250,15 +314,58 @@ export default function Gestacion() {
           border: "border-red-200",
           title: "text-red-700",
           content: "text-red-800",
+          secondary: "text-red-600",
+        };
+      case "Activa":
+        return {
+          bg: "bg-pink-50",
+          border: "border-pink-200",
+          title: "text-pink-700",
+          content: "text-pink-900",
+          secondary: "text-pink-600",
         };
       default:
         return {
-          bg: "bg-gray-50",
-          border: "border-gray-200",
-          title: "text-gray-700",
-          content: "text-gray-900",
+          bg: "bg-emerald-50",
+          border: "border-emerald-200",
+          title: "text-emerald-700",
+          content: "text-emerald-900",
+          secondary: "text-emerald-600",
         };
     }
+  }
+
+  function handleTouchStart(e: React.TouchEvent, idx: number) {
+    setActiveTouchIndex(idx);
+    setTouchStartX(e.touches[0].clientX);
+    setTouchCurrentX(e.touches[0].clientX);
+  }
+
+  function handleTouchMove(e: React.TouchEvent, idx: number) {
+    if (activeTouchIndex !== idx || touchStartX === null) return;
+    setTouchCurrentX(e.touches[0].clientX);
+  }
+
+  function handleTouchEnd(e: React.TouchEvent, idx: number) {
+    if (touchStartX === null || touchCurrentX === null) {
+      setActiveTouchIndex(null);
+      setTouchStartX(null);
+      setTouchCurrentX(null);
+      return;
+    }
+
+    const dx = touchCurrentX - touchStartX;
+    const threshold = -60;
+
+    if (dx < threshold) {
+      setSwipedIndex(idx);
+    } else if (swipedIndex === idx && dx > 40) {
+      setSwipedIndex(null);
+    }
+
+    setActiveTouchIndex(null);
+    setTouchStartX(null);
+    setTouchCurrentX(null);
   }
 
   function agregarOCrear() {
@@ -272,7 +379,22 @@ export default function Gestacion() {
       return;
     }
 
-    if (!razaFinal) return;
+    if (!razaFinal) {
+      setRazaError("La raza es obligatoria");
+      return;
+    }
+
+    if (!peso.trim()) {
+      setPesoError("El peso es obligatorio");
+      return;
+    }
+
+    const pesoFinal = peso.replace(",", ".");
+    const pesoNumero = parseFloat(pesoFinal);
+    if (Number.isNaN(pesoNumero) || pesoNumero <= 0) {
+      setPesoError("Peso inválido");
+      return;
+    }
 
     const idMayus = id.toUpperCase();
     const idYaExiste = cerdas.some(
@@ -291,11 +413,23 @@ export default function Gestacion() {
       return;
     }
 
+    const llegadaDate = new Date(fecha);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    if (llegadaDate.getTime() > hoy.getTime()) {
+      setFechaError("La fecha de llegada no puede ser futura");
+      return;
+    }
+
     setIdError("");
+    setRazaError("");
+    setPesoError("");
+    setFechaError("");
 
     const nueva = {
       id: idMayus,
       raza: razaFinal,
+      peso,
       fecha,
       caracteristicas,
       estado: "GESTACIÓN",
@@ -348,64 +482,112 @@ export default function Gestacion() {
     return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
   });
 
+  const totales = cerdas.reduce(
+    (acc, cerda) => {
+      const historialRaw = JSON.parse(
+        localStorage.getItem(`historial-${cerda.id}`) || "[]"
+      );
+      const historial = Array.isArray(historialRaw) ? historialRaw : [];
+      const ultimoRegistro = historial[0] || null;
+      const estadoLabel = ultimoRegistro
+        ? obtenerEstadoPorRegistro(ultimoRegistro.tipo)
+        : "Activa";
+
+      const ultimaInseminacion = historial.find(
+        (r: any) => r.tipo === "Inseminación"
+      );
+      const diasParaParto = ultimaInseminacion
+        ? calcularDiasParaParto(ultimaInseminacion.fecha)
+        : null;
+
+      acc.gestantes += estadoLabel === "Gestación" ? 1 : 0;
+      acc.lactando += estadoLabel === "Lactancia" ? 1 : 0;
+      acc.proxPartos +=
+        estadoLabel === "Gestación" && diasParaParto !== null && diasParaParto <= 14
+          ? 1
+          : 0;
+      acc.alertas += [
+        "Aborto",
+        "Baja",
+        "Celo",
+        "Tratamiento",
+        "Próxima a Celo",
+      ].includes(estadoLabel)
+        ? 1
+        : 0;
+
+      return acc;
+    },
+    {
+      gestantes: 0,
+      lactando: 0,
+      proxPartos: 0,
+      alertas: 0,
+    }
+  );
+
   return (
-    <PageShell bgColor="#ffffff" className="p-4 text-slate-900">
+    <PageShell bgColor="#ffffff" className="p-3 text-slate-900">
 
       <div className="max-w-3xl mx-auto">
 
         {/* HEADER */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-3">
+        <div className="mb-3">
+          <div className="flex items-center justify-between gap-2">
             <div>
-              <h1 className="text-4xl font-bold text-pink-600">
+              <h1 className="text-2xl font-bold text-emerald-900">
                 Gestación
               </h1>
-              <p className="text-gray-600 mt-2">
-                Inventario hembras
+              <p className="text-xs text-slate-500 mt-1">
+                Inventario de hembras
               </p>
             </div>
+          </div>
 
-            <button
-              onClick={() =>
-                setEstiloTarjetas(
-                  estiloTarjetas === "normal"
-                    ? "original"
-                    : "normal"
-                )
-              }
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-pink-500 bg-white text-lg font-bold text-pink-600 shadow-sm transition hover:bg-pink-50"
-              aria-label="Cambiar estilo de tarjetas"
-            >
-              ⊞
-            </button>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 mt-3">
+            <div className="rounded-2xl bg-emerald-100 p-1.5 shadow-sm border border-emerald-200">
+              <p className="text-[8px] uppercase tracking-[0.24em] text-emerald-700 font-semibold">Gestantes</p>
+              <p className="mt-0.5 text-base font-extrabold text-emerald-900">{totales.gestantes}</p>
+              <p className="mt-0.5 text-[8px] text-slate-500">{cerdas.length ? `${Math.round((totales.gestantes / cerdas.length) * 100)}%` : '0%'}</p>
+            </div>
+            <div className="rounded-2xl bg-emerald-50 p-1.5 shadow-sm border border-emerald-100">
+              <p className="text-[8px] uppercase tracking-[0.24em] text-emerald-700 font-semibold">Lactando</p>
+              <p className="mt-0.5 text-base font-extrabold text-emerald-900">{totales.lactando}</p>
+              <p className="mt-0.5 text-[8px] text-slate-500">{cerdas.length ? `${Math.round((totales.lactando / cerdas.length) * 100)}%` : '0%'}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-1.5 shadow-sm border border-slate-200">
+              <p className="text-[8px] uppercase tracking-[0.24em] text-slate-500 font-semibold">Próx. partos</p>
+              <p className="mt-0.5 text-base font-extrabold text-emerald-900">{totales.proxPartos}</p>
+              <p className="mt-0.5 text-[8px] text-slate-500">Nuevos en 14 días</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-1.5 shadow-sm border border-slate-200">
+              <p className="text-[8px] uppercase tracking-[0.24em] text-slate-500 font-semibold">Alertas</p>
+              <p className="mt-0.5 text-base font-extrabold text-emerald-900">{totales.alertas}</p>
+              <p className="mt-0.5 text-[8px] text-slate-500">Requieren atención</p>
+            </div>
           </div>
         </div>
 
         {/* BUSCADOR */}
-        <input
-          type="text"
-          placeholder="Buscar ID..."
-          value={buscar}
-          onChange={(e) =>
-            setBuscar(e.target.value)
-          }
-          className="
-            w-full
-            p-4
-            rounded-2xl
-            bg-gray-100
-            border
-            border-gray-300
-            mb-6
-            outline-none
-            text-black
-          "
-        />
+        <div className="mb-4 flex flex-col gap-2">
+          <input
+            type="text"
+            placeholder="Buscar por ID, nombre o raza..."
+            value={buscar}
+            onChange={(e) => setBuscar(e.target.value)}
+            className="w-full p-2 rounded-2xl bg-gray-100 border border-gray-300 outline-none text-black text-sm"
+          />
+        </div>
 
         {/* CARDS */}
-        <div className={`${estiloTarjetas === "original" ? "space-y-2" : "grid grid-cols-2 gap-3"}`}>
+        {filtradas.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+            Sin registros
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
-          {filtradas.map((cerda, index) => {
+            {filtradas.map((cerda, index) => {
             const historialRaw = JSON.parse(
               localStorage.getItem(`historial-${cerda.id}`) || "[]"
             );
@@ -417,226 +599,150 @@ export default function Gestacion() {
             const estadoLabel = ultimoRegistro
               ? obtenerEstadoPorRegistro(ultimoRegistro.tipo)
               : "Activa";
-            const msgStyles = obtenerMensajeStyles(estadoLabel);
+            const panelStyles = obtenerPanelStyles(estadoLabel);
 
-            if (estiloTarjetas === "original") {
-              return (
-                <div
-                  key={index}
-                  onClick={() => router.push(`/cerda/${cerda.id}`)}
-                  className="w-full relative overflow-hidden rounded-[32px] p-2.5 min-h-[110px] text-left shadow-xl active:scale-95 transition duration-200 bg-white cursor-pointer"
-                >
-                  <div className={`absolute inset-y-0 left-0 w-2 rounded-r-3xl bg-gradient-to-b ${obtenerBarraColor(estadoLabel)}`} />
-                  <div className="relative flex h-full flex-col justify-between gap-2 pl-4 pr-10">
-                    <div>
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="flex-1">
-                          <h2 className="text-lg font-bold text-black">{cerda.id}</h2>
-                          <p className="text-gray-500 text-sm mt-1 leading-tight">{cerda.raza}</p>
-                        </div>
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] whitespace-nowrap ${obtenerEstadoStyles(estadoLabel)}`}>
-                          {estadoLabel}
-                        </span>
-                      </div>
-
-                      {ultimoRegistro?.mensaje && (
-                        <div className={`mt-2 ${msgStyles.bg} border ${msgStyles.border} p-2 rounded-2xl`}>
-                          <p className={`${msgStyles.title} text-xs font-medium`}>Mensaje</p>
-                          <p className={`${msgStyles.content} font-bold mt-1 text-sm`}>{ultimoRegistro.mensaje}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-[10px] font-medium uppercase tracking-[0.25em] text-slate-400">{index + 1}/{filtradas.length}</div>
-                    </div>
-                  </div>
-
-                  <button
-                    aria-haspopup="true"
-                    aria-expanded={menuIndex === index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuIndex(menuIndex === index ? null : index);
-                    }}
-                    className="
-                      absolute
-                      top-2
-                      right-2
-                      text-black
-                      text-2xl
-                      font-bold
-                      px-2
-                      hover:text-pink-600
-                      transition-colors
-                    "
-                    aria-label={`Abrir menú para ${cerda.id}`}
-                  >
-                    ⋯
-                  </button>
-
-                  {menuIndex === index && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="
-                        absolute
-                        top-10
-                        right-2
-                        bg-white
-                        border
-                        border-gray-300
-                        rounded-xl
-                        shadow-lg
-                        overflow-hidden
-                        z-50
-                        text-black
-                      "
-                    >
-                      <button
-                        onClick={() => editarCerda(index)}
-                        className="
-                          block
-                          px-4
-                          py-2
-                          text-sm
-                          hover:bg-pink-100
-                          w-full
-                          text-left
-                        "
-                        aria-label={`Editar ${cerda.id}`}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => eliminarCerda(index)}
-                        className="
-                          block
-                          px-4
-                          py-2
-                          text-sm
-                          hover:bg-red-100
-                          w-full
-                          text-left
-                        "
-                        aria-label={`Eliminar ${cerda.id}`}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            }
+            const ultimaInseminacion = historial.find(
+              (item: any) => item.tipo === "Inseminación"
+            );
+            const diasDesdeInseminacion = ultimaInseminacion
+              ? calcularDiasEntre(
+                  ultimaInseminacion.fecha,
+                  new Date().toISOString().split("T")[0]
+                )
+              : null;
+            const diasParaParto = ultimaInseminacion
+              ? calcularDiasParaParto(ultimaInseminacion.fecha)
+              : null;
+            const progresoGestacion = diasDesdeInseminacion !== null
+              ? Math.min(100, Math.max(0, Math.round((diasDesdeInseminacion / DIAS_GESTACION) * 100)))
+              : null;
+            const isActiveMove = activeTouchIndex === index && touchStartX !== null && touchCurrentX !== null;
+            const moveDx = isActiveMove ? Math.min(0, touchCurrentX! - touchStartX!) : 0;
+            const isSwiped = swipedIndex === index;
+            const translateX = isSwiped ? -96 : moveDx;
 
             return (
               <div
                 key={index}
-                onClick={() => router.push(`/cerda/${cerda.id}`)}
-                className="
-                  relative
-                  bg-white
-                  rounded-2xl
-                  p-4
-                  border
-                  border-pink-300
-                  shadow-md
-                  hover:shadow-lg
-                  transition-shadow
-                  cursor-pointer
-                  active:scale-95
-                  transition
-                "
+                className="w-full relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md active:scale-[0.99]"
               >
-                <h2 className="text-lg font-bold">{cerda.id}</h2>
-                <p className="text-gray-600 text-sm">{cerda.raza}</p>
-                <p className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold mt-1 ${obtenerEstadoStyles(estadoLabel)}`}>
-                  {estadoLabel}
-                </p>
-
-                {ultimoRegistro?.mensaje && (
-                  <div className={`mt-3 ${msgStyles.bg} border ${msgStyles.border} p-3 rounded-2xl`}>
-                    <p className={`${msgStyles.title} text-sm font-medium`}>Mensaje</p>
-                    <p className={`${msgStyles.content} font-bold mt-1`}>{ultimoRegistro.mensaje}</p>
-                  </div>
-                )}
-
-                <button
-                  aria-haspopup="true"
-                  aria-expanded={menuIndex === index}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenuIndex(menuIndex === index ? null : index);
-                  }}
-                  className="
-                    absolute
-                    top-2
-                    right-2
-                    text-black
-                    text-2xl
-                    font-bold
-                    px-2
-                    hover:text-pink-600
-                    transition-colors
-                  "
-                  aria-label={`Abrir menú para ${cerda.id}`}
-                >
-                  ⋯
-                </button>
-
-                {menuIndex === index && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="
-                      absolute
-                      top-10
-                      right-2
-                      bg-white
-                      border
-                      border-gray-300
-                      rounded-xl
-                      shadow-lg
-                      overflow-hidden
-                      z-50
-                      text-black
-                    "
+                <div className={`absolute inset-y-0 right-0 z-0 flex flex-col items-end justify-center gap-2 pr-3 bg-emerald-50/90 border-l border-emerald-100 w-24 transition duration-200 ${isSwiped ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
+                  <button
+                    data-swipe-ignore="true"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSwipedIndex(null);
+                      editarCerda(index);
+                    }}
+                    className="w-full rounded-lg bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm"
                   >
-                    <button
-                      onClick={() => editarCerda(index)}
-                      className="
-                        block
-                        px-4
-                        py-2
-                        text-sm
-                        hover:bg-pink-100
-                        w-full
-                        text-left
-                      "
-                      aria-label={`Editar ${cerda.id}`}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => eliminarCerda(index)}
-                      className="
-                        block
-                        px-4
-                        py-2
-                        text-sm
-                        hover:bg-red-100
-                        w-full
-                        text-left
-                      "
-                      aria-label={`Eliminar ${cerda.id}`}
-                    >
-                      Eliminar
-                    </button>
+                    Editar
+                  </button>
+                  <button
+                    data-swipe-ignore="true"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSwipedIndex(null);
+                      eliminarCerda(index);
+                    }}
+                    className="w-full rounded-lg bg-red-500 px-2 py-1 text-[10px] font-semibold text-white shadow-sm"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+
+                <div
+                  className="relative z-10 p-2.5 cursor-pointer"
+                  onClick={() => {
+                    if (isSwiped) {
+                      setSwipedIndex(null);
+                      return;
+                    }
+                    router.push(`/cerda/${cerda.id}`);
+                  }}
+                  onTouchStart={(e) => { handleTouchStart(e, index); e.stopPropagation(); }}
+                  onTouchMove={(e) => { handleTouchMove(e, index); e.stopPropagation(); }}
+                  onTouchEnd={(e) => { handleTouchEnd(e, index); e.stopPropagation(); }}
+                  style={{ transform: `translateX(${translateX}px)` }}
+                >
+                  <div className={`absolute inset-y-0 left-0 w-2 rounded-r-3xl bg-gradient-to-b ${obtenerBarraColor(estadoLabel)}`} />
+                  <div className="relative flex flex-col gap-1.5 pl-3 pr-8">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-emerald-100 text-sm shrink-0">🐷</div>
+                      <div className="min-w-0">
+                        <h2 className="text-base font-bold text-slate-950">{cerda.id}</h2>
+                        <p className="text-gray-500 text-[11px] mt-0.5">{cerda.raza}</p>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] whitespace-nowrap ${obtenerEstadoStyles(estadoLabel)}`}>
+                      {estadoLabel}
+                    </span>
                   </div>
-                )}
+
+                  <div className="space-y-1.5 text-[10px] text-gray-600">
+                    <div className="flex items-center gap-1.5">
+                      <span>📅</span>
+                      <span>{ultimoRegistro?.tipo === "Inseminación" ? `IA: ${formatearFechaCorta(ultimoRegistro.fecha)}` : `Llegada: ${formatearFechaCorta(cerda.fecha)}`}</span>
+                    </div>
+                    {progresoGestacion !== null && estadoLabel === "Gestación" ? (
+                      <div className="space-y-2">
+                        <div className="text-[9px] text-slate-500 uppercase tracking-[0.18em]">Progreso de gestación</div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div className="bg-blue-500 h-full rounded-full transition-all duration-300" style={{ width: `${progresoGestacion}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] text-slate-500">
+                          <span>{progresoGestacion}%</span>
+                          <span>{diasParaParto !== null ? `Faltan ${diasParaParto} días` : ""}</span>
+                        </div>
+                      </div>
+                    ) : diasDesdeInseminacion !== null ? (
+                      <div className="flex items-center gap-1.5">
+                        <span>⏱</span>
+                        <span>{diasDesdeInseminacion} días</span>
+                      </div>
+                    ) : null}
+                    {cerda.caracteristicas ? (
+                      <div className="flex items-center gap-1.5">
+                        <span>📝</span>
+                        <span>{cerda.caracteristicas}</span>
+                      </div>
+                    ) : null}
+
+                    <div className={`rounded-2xl border p-1.5 ${panelStyles.bg} ${panelStyles.border}`}>
+                      {estadoLabel === "Gestación" && diasParaParto !== null ? (
+                        <>
+                          <p className={`text-[9px] uppercase tracking-[0.18em] ${panelStyles.title}`}>Parto</p>
+                          <p className={`mt-0.5 text-xs font-semibold ${panelStyles.content}`}>{formatearFechaCorta(calcularParto(ultimaInseminacion?.fecha || cerda.fecha))}</p>
+                          <p className={`mt-0.5 text-[9px] ${panelStyles.secondary}`}>Quedan {diasParaParto} días</p>
+                        </>
+                      ) : ultimoRegistro?.tipo === "Evento" ? (
+                        <>
+                          <p className={`text-[9px] uppercase tracking-[0.18em] ${panelStyles.title}`}>Evento</p>
+                          <p className={`mt-0.5 text-xs font-semibold ${panelStyles.content}`}>Nuevo evento registrado</p>
+                        </>
+                      ) : estadoLabel === "Lactancia" ? (
+                        <>
+                          <p className={`text-[9px] uppercase tracking-[0.18em] ${panelStyles.title}`}>Lactancia</p>
+                          <p className={`mt-0.5 text-xs font-semibold ${panelStyles.content}`}>{ultimoRegistro?.mensaje || "En lactancia"}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className={`text-[9px] uppercase tracking-[0.18em] ${panelStyles.title}`}>Seguimiento</p>
+                          <p className={`mt-0.5 text-xs font-semibold ${panelStyles.content}`}>{ultimoRegistro?.mensaje || "Pendiente"}</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                </div>
               </div>
             );
-          })}
+            })}
 
-        </div>
+          </div>
+        )}
 
         {/* BOTÓN + */}
         <div className="relative">
@@ -644,19 +750,19 @@ export default function Gestacion() {
             onClick={() => setMostrarMenuFlotante(!mostrarMenuFlotante)}
             className="
               fixed
-              bottom-6
-              right-6
+              bottom-[1.5rem]
+              right-5
               bg-gradient-to-br
-              from-pink-500
-              to-pink-600
+              from-emerald-700
+              to-emerald-900
               text-white
-              w-16
-              h-16
+              w-14
+              h-14
               rounded-full
-              text-4xl
+              text-3xl
               shadow-lg
-              hover:shadow-2xl
-              hover:scale-110
+              hover:shadow-xl
+              hover:scale-105
               active:scale-95
               transition-all
               duration-200
@@ -675,17 +781,17 @@ export default function Gestacion() {
                 onClick={() => setMostrarMenuFlotante(false)}
               />
 
-              <div className="fixed bottom-24 right-6 bg-white border border-gray-200 rounded-3xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="fixed bottom-16 right-4 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 
-                <div className="px-6 py-4 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
-                  <label className="text-xs font-semibold text-gray-700 block mb-3 uppercase tracking-wider">Filtrar por estado</label>
+                <div className="px-3 py-2 bg-gradient-to-br from-white to-emerald-50 border-b border-slate-100">
+                  <label className="text-[9px] font-semibold text-slate-700 block mb-1 uppercase tracking-[0.2em]">Filtrar por estado</label>
                   <select
                     value={estadoFiltro}
                     onChange={(e) => {
                       setEstadoFiltro(e.target.value);
                       setMostrarMenuFlotante(false);
                     }}
-                    className="w-full rounded-xl bg-white border border-gray-300 px-3 py-2 text-sm text-black font-medium hover:border-pink-400 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full rounded-2xl bg-white border border-gray-300 px-3 py-2 text-xs text-black font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-200"
                     aria-label="Filtrar por estado"
                   >
                     <option>Todos</option>
@@ -703,45 +809,15 @@ export default function Gestacion() {
                 <div className="border-t border-gray-100" />
 
                 <button
-                  onClick={() => {
-                    setEstiloTarjetas(
-                      estiloTarjetas === "normal"
-                        ? "original"
-                        : "normal"
-                    );
-                    setMostrarMenuFlotante(false);
-                  }}
-                  className="block w-full px-6 py-4 text-left hover:bg-slate-50 transition-colors group"
-                  aria-label="Cambiar estilo de tarjetas"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center group-hover:bg-slate-200 transition-colors">
-                      <span className="text-slate-600 text-lg">⊞</span>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-semibold text-black">
-                        Cambiar estilo
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {estiloTarjetas === "original" ? "Tarjetas" : "Tarjetas cuadriculadas"}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-
-                <div className="border-t border-gray-100" />
-
-                <button
   onClick={() => {
     setMostrarMenuFlotante(false);
     router.push("/tareas");
   }}
-  className="block w-full px-6 py-4 text-left hover:bg-yellow-50 transition-colors group"
+  className="block w-full px-2 py-2 text-left hover:bg-emerald-50 transition-colors group"
 >
-  <div className="flex items-center gap-3">
-    <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center group-hover:bg-yellow-200 transition-colors">
-      <span className="text-yellow-600 font-bold text-lg">!</span>
+  <div className="flex items-center gap-2">
+<div className="w-7 h-7 bg-yellow-100 rounded-full flex items-center justify-center group-hover:bg-yellow-200 transition-colors">
+                      <span className="text-yellow-600 font-bold text-xs">!</span>
     </div>
 
     <div>
@@ -764,11 +840,11 @@ export default function Gestacion() {
                     setMostrarFormulario(true);
                     setMostrarMenuFlotante(false);
                   }}
-                  className="block w-full px-6 py-4 text-left hover:bg-pink-50 transition-colors group"
+                  className="block w-full px-2 py-2 text-left hover:bg-emerald-50 transition-colors group"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center group-hover:bg-pink-200 transition-colors">
-                      <span className="text-pink-600 font-bold text-lg">+</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                      <span className="text-emerald-800 font-bold text-xs">+</span>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-black">Agregar Cerda</p>
@@ -781,6 +857,45 @@ export default function Gestacion() {
           )}
         </div>
 
+        {/* CONFIRMAR ELIMINACIÓN */}
+        {confirmDeleteIndex !== null && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-3">
+            <div className="w-full max-w-sm rounded-3xl bg-white p-4 text-black shadow-2xl">
+              <h3 className="text-lg font-bold text-emerald-900">Eliminar cerda {cerdas[confirmDeleteIndex]?.id || ""}</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Ingresa la clave de confirmación. Esta acción no se podrá restablecer!
+              </p>
+
+              <input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={deletePinInput}
+                onChange={(e) => setDeletePinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder=""
+                className="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-black outline-none"
+              />
+
+              {deletePinError ? <p className="mt-2 text-sm text-red-600">{deletePinError}</p> : null}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={cancelarEliminarCerda}
+                  className="rounded-2xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarEliminarCerda}
+                  className="rounded-2xl bg-red-600 px-3 py-2 text-sm font-semibold text-white"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* FORMULARIO */}
         {mostrarFormulario && (
 
@@ -788,11 +903,12 @@ export default function Gestacion() {
             className="
               fixed
               inset-0
+              z-[70]
               bg-black/40
               flex
               items-center
               justify-center
-              p-4
+              p-3
             "
           >
 
@@ -800,19 +916,19 @@ export default function Gestacion() {
               className="
                 bg-white
                 w-full
-                max-w-md
+                max-w-sm
                 rounded-3xl
-                p-6
+                p-3
                 text-black
               "
             >
 
               <h2
                 className="
-                  text-3xl
+                  text-lg
                   font-bold
-                  text-pink-600
-                  mb-6
+                  text-emerald-900
+                  mb-3
                 "
               >
                 {editIndex !== null
@@ -823,12 +939,12 @@ export default function Gestacion() {
                 <button
                   onClick={() => setMostrarFormulario(false)}
                   aria-label="Cerrar formulario"
-                  className="absolute top-6 right-6 text-gray-500 hover:text-gray-700"
+                  className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
                 >
                   ✕
                 </button>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
 
                 {/* ID */}
                 <div>
@@ -845,8 +961,8 @@ export default function Gestacion() {
                     aria-label="ID de la cerda"
                     className={`
                       w-full
-                      h-14
-                      px-4
+                      h-12
+                      px-3
                       rounded-2xl
                       bg-gray-100
                       border
@@ -873,14 +989,15 @@ export default function Gestacion() {
                   aria-label="Raza"
                   className="
                     w-full
-                    h-14
-                    px-4
+                    h-12
+                    px-3
                     rounded-2xl
                     bg-gray-100
                     border
                     border-gray-300
                     outline-none
                     text-black
+                    text-sm
                   "
                 >
 
@@ -932,8 +1049,8 @@ export default function Gestacion() {
                     }
                     className="
                       w-full
-                      h-14
-                      px-4
+                      h-12
+                      px-3
                       rounded-2xl
                       bg-gray-100
                       border
@@ -945,6 +1062,25 @@ export default function Gestacion() {
                   />
 
                 )}
+
+                <div>
+                  <p className="text-sm mb-2 text-gray-600">Peso (kg)</p>
+                  <input
+                    type="tel"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={peso}
+                    onChange={(e) => {
+                      const nuevo = e.target.value.replace(/[^0-9.,]/g, "");
+                      setPeso(nuevo);
+                      if (pesoError) setPesoError("");
+                    }}
+                    placeholder="Ej: 70.0"
+                    aria-label="Peso"
+                    className={`w-full h-12 px-3 rounded-2xl bg-gray-100 border ${pesoError ? "border-red-500" : "border-gray-300"} outline-none text-black text-sm`}
+                  />
+                  {pesoError && <p className="mt-2 text-xs text-red-600">{pesoError}</p>}
+                </div>
 
                 {/* FECHA */}
                 <div>
@@ -963,8 +1099,8 @@ export default function Gestacion() {
                     aria-label="Fecha de llegada"
                     className={`
                       w-full
-                      h-14
-                      px-4
+                      h-12
+                      px-3
                       rounded-2xl
                       bg-gray-100
                       border
@@ -996,8 +1132,8 @@ export default function Gestacion() {
                   className="
                     w-full
                     h-20
-                    px-4
-                    py-3
+                    px-3
+                    py-2
                     rounded-2xl
                     bg-gray-100
                     border
@@ -1006,6 +1142,7 @@ export default function Gestacion() {
                     text-black
                     resize-none
                     placeholder:text-gray-500
+                    text-sm
                   "
                 />
 
@@ -1014,11 +1151,11 @@ export default function Gestacion() {
                   onClick={agregarOCrear}
                   className="
                     w-full
-                    bg-pink-500
+                    bg-emerald-800
                     text-white
-                    py-4
+                    py-2.5
                     rounded-2xl
-                    text-lg
+                    text-sm
                     font-bold
                   "
                 >
@@ -1034,10 +1171,10 @@ export default function Gestacion() {
                   }
                   className="
                     w-full
-                    bg-gray-300
-                    py-4
+                    bg-gray-200
+                    py-2.5
                     rounded-2xl
-                    text-lg
+                    text-sm
                     text-black
                   "
                 >
@@ -1050,21 +1187,6 @@ export default function Gestacion() {
 
           </div>
 
-        )}
-
-        {/* CONFIRM DELETE MODAL */}
-        {confirmDeleteIndex !== null && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-lg">
-              <h3 className="text-lg font-bold text-black">Confirmar eliminación</h3>
-              <p className="text-sm text-gray-600 mt-2">¿Eliminar la cerda <span className="font-semibold">{cerdas[confirmDeleteIndex].id}</span>? Esta acción no se puede deshacer.</p>
-
-              <div className="mt-4 flex gap-3 justify-end">
-                <button onClick={cancelarEliminarCerda} className="px-4 py-2 rounded-2xl bg-gray-100">Cancelar</button>
-                <button onClick={confirmarEliminarCerda} className="px-4 py-2 rounded-2xl bg-red-500 text-white">Eliminar</button>
-              </div>
-            </div>
-          </div>
         )}
 
       </div>

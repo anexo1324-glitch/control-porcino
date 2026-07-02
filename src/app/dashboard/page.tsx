@@ -321,14 +321,14 @@ export default function Dashboard() {
 
   return (
     <PageShell bgColor="#f5f5f7" className="flex flex-col">
-      <div className="mx-auto flex max-w-xl flex-col gap-4 flex-1">
+      <div className="mx-auto flex max-w-xl flex-col gap-3 flex-1">
         <Header 
           title="El Mirador" 
           subtitle="Sistema integral de producción porcina"
           bgColor="#f5f5f7"
         />
 
-        <section className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-3 py-3 shadow-sm">
+        <section className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-3 py-2 shadow-sm">
           <div className="absolute right-0 top-0 h-full w-28 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.12),_transparent_60%)]" />
           <div className="absolute -bottom-6 left-6 h-20 w-20 rounded-full bg-emerald-100 opacity-80" />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -380,30 +380,30 @@ export default function Dashboard() {
                 key={modulo.nombre}
                 type="button"
                 onClick={() => router.push(modulo.ruta)}
-                className="flex items-center justify-between gap-3 overflow-hidden rounded-[26px] border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 active:scale-[0.99]"
+                className="flex items-center justify-between gap-2 overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition hover:shadow-md active:scale-[0.98]"
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-emerald-50 text-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-xl text-emerald-800">
                     {modulo.icon}
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-slate-950">{modulo.nombre}</p>
-                    <p className="mt-1 text-sm text-slate-500">{modulo.descripcion}</p>
+                    <p className="text-sm font-semibold text-slate-950">{modulo.nombre}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{modulo.descripcion}</p>
                   </div>
                 </div>
-                <span className="text-2xl text-slate-400">›</span>
+                <span className="text-xl text-slate-400">›</span>
               </button>
             ))}
           </div>
         </section>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur-xl p-3">
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur-xl p-2">
         <div className="mx-auto flex max-w-xl items-center justify-between text-slate-600">
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="flex flex-col items-center gap-1 text-emerald-700"
+            className="flex flex-col items-center gap-1 text-emerald-900"
           >
             <span className="text-2xl">🏠</span>
             <span className="text-[11px] font-semibold uppercase">Inicio</span>
@@ -437,7 +437,7 @@ export default function Dashboard() {
 
       <button
         onClick={() => router.push("/tareas")}
-        className="fixed bottom-24 right-4 z-30 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-3xl text-slate-800 shadow-md shadow-slate-300/50 transition hover:bg-gray-300"
+        className="fixed bottom-22 right-4 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-800 text-2xl text-white shadow-md shadow-emerald-300/30 transition hover:bg-emerald-900"
         aria-label="Ir a alertas"
       >
         <span className="relative inline-flex h-full w-full items-center justify-center">

@@ -43,17 +43,13 @@ export default function Home() {
           <Image
             src="/logo.png"
             alt="Logo Porcícola El Mirador"
-            width={420}
-            height={420}
+            width={500}
+            height={500}
             priority
             className="w-[220px] sm:w-[280px] md:w-[360px] h-auto"
           />
 
-          {/* Título */}
-          <h1 className="text-center text-4xl sm:text-5xl md:text-6xl font-extrabold text-green-700 uppercase">
-            Porcícola El Mirador
-          </h1>
-
+          
           <p className="text-base sm:text-xl text-gray-600">
             Gestión Inteligente
           </p>
