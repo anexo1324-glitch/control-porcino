@@ -60,6 +60,8 @@ export async function registerServiceWorker() {
 /**
  * Envía notificación push del navegador
  */
+import { NOTIFICATION_TAGS } from './messages';
+
 export async function sendPushNotification(
   title: string,
   options?: NotificationOptions
@@ -77,6 +79,8 @@ export async function sendPushNotification(
     if (registration?.showNotification) {
       await registration.showNotification(title, {
         icon: '/icon-192x192.png',
+        data: { url: '/tareas', ...(options && (options as any).data) },
+        tag: NOTIFICATION_TAGS.PENDIENTES,
         ...options,
       });
       return;
@@ -87,6 +91,8 @@ export async function sendPushNotification(
 
   new Notification(title, {
     icon: '/icon-192x192.png',
+    data: { url: '/tareas', ...(options && (options as any).data) },
+    tag: NOTIFICATION_TAGS.PENDIENTES,
     ...options,
   });
 }
