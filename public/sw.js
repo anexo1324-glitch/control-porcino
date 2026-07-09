@@ -1,3 +1,31 @@
+	self.addEventListener('push', function(event) {
+	  let payload = {
+	    title: 'Notificación',
+	    body: 'Tienes una nueva alerta pendiente.',
+	    url: '/tareas',
+	    tag: 'pendiente-tareas',
+	  };
+
+	  if (event.data) {
+	    try {
+	      payload = event.data.json();
+	    } catch (error) {
+	      console.error('Push event data parse error:', error);
+	    }
+	  }
+
+	  const title = payload.title || 'Notificación';
+	  const options = {
+	    body: payload.body,
+	    icon: '/icon-192x192.png',
+	    badge: '/icon-192x192.png',
+	    data: { url: payload.url || '/tareas' },
+	    tag: payload.tag || 'pendiente-tareas',
+	  };
+
+	  event.waitUntil(self.registration.showNotification(title, options));
+	});
+
 	// Escucha clicks en notificaciones y abre/focaliza la página de tareas
 	self.addEventListener('notificationclick', function(event) {
 	  event.notification.close();

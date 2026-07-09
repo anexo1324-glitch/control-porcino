@@ -7,7 +7,7 @@ import ToastContainer from "@/components/ToastContainer";
 import Header from "@/components/Header";
 import SummaryCard from "@/components/SummaryCard";
 import PageShell from "@/components/PageShell";
-import { sendPushNotification, requestNotificationPermission } from "@/utils/notifications";
+import { sendPushNotification, sendServerPushNotification, requestNotificationPermission } from "@/utils/notifications";
 import { tasksPendingMessage, NOTIFICATION_TAGS } from '@/utils/messages';
 
 const modulos = [
@@ -268,6 +268,7 @@ export default function Dashboard() {
       body,
       tag: NOTIFICATION_TAGS.PENDIENTES,
     });
+    await sendServerPushNotification(title, body, '/tareas', NOTIFICATION_TAGS.PENDIENTES);
   }
 
   function shouldSendProgressNotification(current: number, previous: number | null) {
