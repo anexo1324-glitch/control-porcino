@@ -253,6 +253,54 @@ export default function Dashboard() {
   const cerdasCriticas = useMemo(() => obtenerCerdasCriticas(cerdas), [cerdas]);
   const lastPendientesRef = useRef<number | null>(null);
 
+  function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function getDailyReminderKey(hour: number) {
+    return `tasksReminder-${hour}`;
+  }
+
+  async function trySendPendingNotification(count: number) {
+    if (!notificacionesPermitidas || count <= 0) return;
+    const { title, body } = tasksPendingMessage(count);
+    await sendPushNotification(title, {
+      body,
+      tag: NOTIFICATION_TAGS.PENDIENTES,
+    });
+  }
+
+  function shouldSendProgressNotification(current: number, previous: number | null) {
+    if (previous === null) return false;
+    return current > previous;
+  }
+
+  function scheduleDailyReminder(nextHour: number) {
+    const now = new Date();
+    const today = getTodayDate();
+    const target = new Date(now);
+    target.setHours(nextHour, 0, 0, 0);
+
+    if (target.getTime() <= now.getTime()) {
+      target.setDate(target.getDate() + 1);
+    }
+
+    const delay = target.getTime() - now.getTime();
+    return window.setTimeout(async () => {
+      const todayKey = getDailyReminderKey(nextHour);
+      if (localStorage.getItem(todayKey) !== getTodayDate() && pendientes > 0 && notificacionesPermitidas) {
+        const { title, body } = tasksPendingMessage(pendientes);
+        await sendPushNotification(title, {
+          body,
+          tag: NOTIFICATION_TAGS.PENDIENTES,
+        });
+        localStorage.setItem(todayKey, getTodayDate());
+      }
+      const next = nextHour === 7 ? 8 : 7;
+      scheduleDailyReminder(next);
+    }, delay);
+  }
+
   useEffect(() => {
     const handleStorage = () => {
       setCerdas(cargarCerdasDeStorage());
@@ -268,25 +316,45 @@ export default function Dashboard() {
     return () => window.removeEventListener("storage", handleStorage);
   }, [addToast]);
 
-  // Notificaciones periódicas deshabilitadas: se removió el envío cada 15s
-
   useEffect(() => {
     if (!notificacionesPermitidas) return;
 
-    if (pendientes === 0) {
+    if (lastPendientesRef.current === null) {
       lastPendientesRef.current = pendientes;
-      return;
     }
 
-    if (lastPendientesRef.current === pendientes) return;
+    if (shouldSendProgressNotification(pendientes, lastPendientesRef.current)) {
+      void trySendPendingNotification(pendientes);
+    }
 
     lastPendientesRef.current = pendientes;
 
-    const { title, body } = tasksPendingMessage(pendientes);
-    void sendPushNotification(title, {
-      body,
-      tag: NOTIFICATION_TAGS.PENDIENTES,
-    });
+    const now = new Date();
+    const today = getTodayDate();
+    const reminder7Key = getDailyReminderKey(7);
+    const reminder8Key = getDailyReminderKey(8);
+
+    if (now.getHours() >= 7 && localStorage.getItem(reminder7Key) !== today) {
+      if (pendientes > 0) {
+        void trySendPendingNotification(pendientes);
+        localStorage.setItem(reminder7Key, today);
+      }
+    }
+
+    if (now.getHours() >= 8 && localStorage.getItem(reminder8Key) !== today) {
+      if (pendientes > 0) {
+        void trySendPendingNotification(pendientes);
+        localStorage.setItem(reminder8Key, today);
+      }
+    }
+
+    const timer7 = scheduleDailyReminder(7);
+    const timer8 = scheduleDailyReminder(8);
+
+    return () => {
+      window.clearTimeout(timer7);
+      window.clearTimeout(timer8);
+    };
   }, [pendientes, notificacionesPermitidas]);
 
   // Evitar que el botón de retroceder del navegador salga del dashboard
