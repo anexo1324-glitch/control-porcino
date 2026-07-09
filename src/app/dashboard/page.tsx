@@ -9,6 +9,7 @@ import SummaryCard from "@/components/SummaryCard";
 import PageShell from "@/components/PageShell";
 import { sendPushNotification, sendServerPushNotification, requestNotificationPermission } from "@/utils/notifications";
 import { tasksPendingMessage, NOTIFICATION_TAGS } from '@/utils/messages';
+import { cargarCerdasDeStorage, contarTareasPendientes, generarTareasPendientes, calcularTareasPendientes, Cerda } from '@/utils/pendingTasks';
 
 const modulos = [
   {
@@ -55,11 +56,6 @@ const modulos = [
   },
 ];
 
-interface Cerda {
-  id: string;
-  [key: string]: unknown;
-}
-
 function obtenerEstadoActual(historial: unknown[]) {
   if (!Array.isArray(historial) || historial.length === 0) {
     return "Activa";
@@ -87,147 +83,11 @@ function obtenerEstadoActual(historial: unknown[]) {
   }
 }
 
-type Registro = {
-  tipo?: string;
-  fecha?: string;
-};
-
-function cargarCerdasDeStorage() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const datos = JSON.parse(localStorage.getItem("cerdas") || "[]");
-  return Array.isArray(datos) ? datos : [];
-}
-
-function calcularDiasEntre(fechaInicio: string, fechaFin: string) {
-  const inicio = new Date(fechaInicio);
-  const fin = new Date(fechaFin);
-  const diff = fin.getTime() - inicio.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-function obtenerPendientes(datos: Cerda[]) {
-  const cerdasConTareas = new Set<string>();
-  const hoy = new Date().toISOString().split("T")[0];
-
-  datos.forEach((cerda) => {
-    const historial = JSON.parse(
-      localStorage.getItem(`historial-${cerda.id}`) || "[]"
-    ) as unknown[];
-
-    if (!Array.isArray(historial) || historial.length === 0) return;
-
-    const ultimoRegistro = historial[0] as Registro;
-    if (["Baja", "Vendida", "Muerta"].includes(ultimoRegistro.tipo || "")) return;
-
-    const diasDesdeUltimo = calcularDiasEntre(ultimoRegistro.fecha || hoy, hoy);
-
-    const regInseminacion = historial.find(
-      (registro) => (registro as Registro).tipo === "Inseminación"
-    ) as Registro | undefined;
-    const regParto = historial.find(
-      (registro) => (registro as Registro).tipo === "Parto"
-    ) as Registro | undefined;
-    const regDestete = historial.find(
-      (registro) => (registro as Registro).tipo === "Destete"
-    ) as Registro | undefined;
-    const regCelo = historial.find(
-      (registro) => (registro as Registro).tipo === "Celo"
-    ) as Registro | undefined;
-
-    let tieneTarea = false;
-
-    if (regInseminacion) {
-      const diasDesdeInseminacion = calcularDiasEntre(regInseminacion.fecha || hoy, hoy);
-      if ((diasDesdeInseminacion >= 110 && diasDesdeInseminacion <= 114) ||
-          (diasDesdeInseminacion >= 115 && !regParto)) {
-        tieneTarea = true;
-      }
-    }
-
-    if (!tieneTarea && regInseminacion) {
-      const diasDesdeInseminacion = calcularDiasEntre(regInseminacion.fecha || hoy, hoy);
-      if (
-        (diasDesdeInseminacion >= 18 && diasDesdeInseminacion <= 24 && !regParto && !historial.some((registro) => (registro as Registro).tipo === "Aborto")) ||
-        (diasDesdeInseminacion >= 100 && diasDesdeInseminacion <= 109)
-      ) {
-        tieneTarea = true;
-      }
-    }
-
-    if (!tieneTarea && regDestete) {
-      const diasDesdeDestete = calcularDiasEntre(regDestete.fecha || hoy, hoy);
-      if (diasDesdeDestete >= 3 && diasDesdeDestete <= 7) {
-        tieneTarea = true;
-      }
-    }
-
-    if (!tieneTarea && regCelo) {
-      const diasDesdeCelo = calcularDiasEntre(regCelo.fecha || hoy, hoy);
-      if (diasDesdeCelo >= 0 && diasDesdeCelo <= 10) {
-        tieneTarea = true;
-      }
-    }
-
-    if (!tieneTarea && regInseminacion) {
-      const diasDesdeInseminacion = calcularDiasEntre(regInseminacion.fecha || hoy, hoy);
-      if (
-        (diasDesdeInseminacion >= 25 && diasDesdeInseminacion <= 35) ||
-        (diasDesdeInseminacion >= 70 && diasDesdeInseminacion <= 90)
-      ) {
-        tieneTarea = true;
-      }
-    }
-
-    if (!tieneTarea && regParto) {
-      const diasDesdeParto = calcularDiasEntre(regParto.fecha || hoy, hoy);
-      if ((diasDesdeParto >= 1 && diasDesdeParto <= 5) || (diasDesdeParto >= 21 && diasDesdeParto <= 28)) {
-        tieneTarea = true;
-      }
-    }
-
-    if (!tieneTarea && diasDesdeUltimo > 60) {
-      tieneTarea = true;
-    }
-
-    if (tieneTarea) {
-      cerdasConTareas.add(cerda.id);
-    }
-  });
-
-  return cerdasConTareas.size;
-}
-
 function obtenerCerdasCriticas(datos: Cerda[]) {
-  const criticas: string[] = [];
-  const hoy = new Date().toISOString().split("T")[0];
-
-  datos.forEach((cerda) => {
-    const historial = JSON.parse(
-      localStorage.getItem(`historial-${cerda.id}`) || "[]"
-    ) as unknown[];
-
-    if (!Array.isArray(historial) || historial.length === 0) return;
-
-    const regInseminacion = historial.find(
-      (registro) => (registro as Registro).tipo === "Inseminación"
-    ) as Registro | undefined;
-    const regParto = historial.find(
-      (registro) => (registro as Registro).tipo === "Parto"
-    ) as Registro | undefined;
-
-    if (!regInseminacion) return;
-
-    const diasDesdeInseminacion = calcularDiasEntre(regInseminacion.fecha || hoy, hoy);
-    if ((diasDesdeInseminacion >= 110 && diasDesdeInseminacion <= 114) ||
-        (diasDesdeInseminacion >= 115 && !regParto)) {
-      criticas.push(cerda.id);
-    }
-  });
-
-  return criticas;
+  const tareasCriticas = calcularTareasPendientes(datos).filter(
+    (tarea) => tarea.prioridad === "critica"
+  );
+  return Array.from(new Set(tareasCriticas.map((tarea) => tarea.id)));
 }
 
 export default function Dashboard() {
@@ -249,7 +109,8 @@ export default function Dashboard() {
     return cargarCerdasDeStorage();
   });
 
-  const pendientes = useMemo(() => obtenerPendientes(cerdas), [cerdas]);
+  const pendingTasks = useMemo(() => calcularTareasPendientes(cerdas), [cerdas]);
+  const pendientes = pendingTasks.length;
   const cerdasCriticas = useMemo(() => obtenerCerdasCriticas(cerdas), [cerdas]);
   const lastPendientesRef = useRef<number | null>(null);
 
@@ -261,6 +122,14 @@ export default function Dashboard() {
     return `tasksReminder-${hour}`;
   }
 
+  function getPendingAlertDetails() {
+    return {
+      title: tasksPendingMessage(pendientes).title,
+      body: tasksPendingMessage(pendientes).body,
+      tasks: calcularTareasPendientes(cerdas),
+    };
+  }
+
   async function trySendPendingNotification(count: number) {
     if (!notificacionesPermitidas || count <= 0) return;
     const { title, body } = tasksPendingMessage(count);
@@ -269,6 +138,21 @@ export default function Dashboard() {
       tag: NOTIFICATION_TAGS.PENDIENTES,
     });
     await sendServerPushNotification(title, body, '/tareas', NOTIFICATION_TAGS.PENDIENTES);
+  }
+
+  async function handleSendAlertsNow() {
+    if (pendientes <= 0) {
+      addToast('Sin alertas', 'No hay alertas pendientes para enviar.', 'info', 3000);
+      return;
+    }
+
+    const { title, body } = tasksPendingMessage(pendientes);
+    await sendPushNotification(title, {
+      body,
+      tag: NOTIFICATION_TAGS.PENDIENTES,
+    });
+    await sendServerPushNotification(title, body, '/tareas', NOTIFICATION_TAGS.PENDIENTES);
+    addToast('Enviado', `Se enviaron ${pendientes} alertas pendientes.`, 'success', 4000);
   }
 
   function shouldSendProgressNotification(current: number, previous: number | null) {
@@ -307,6 +191,10 @@ export default function Dashboard() {
       setCerdas(cargarCerdasDeStorage());
     };
 
+    const handleFocus = () => {
+      setCerdas(cargarCerdasDeStorage());
+    };
+
     requestNotificationPermission().then((permitido) => {
       if (permitido) {
         setNotificacionesPermitidas(true);
@@ -314,7 +202,11 @@ export default function Dashboard() {
     });
 
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [addToast]);
 
   useEffect(() => {
@@ -407,6 +299,16 @@ export default function Dashboard() {
           title="El Mirador" 
           subtitle="Sistema integral de producción porcina"
           bgColor="#f5f5f7"
+          actions={
+            <button
+              type="button"
+              onClick={handleSendAlertsNow}
+              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100"
+            >
+              <span className="text-lg">🚀</span>
+              <span>Enviar ahora</span>
+            </button>
+          }
         />
 
         <section className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-3 py-2 shadow-sm">

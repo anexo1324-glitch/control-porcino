@@ -4,6 +4,7 @@ interface HeaderProps {
   title: string;
   subtitle?: string;
   bgColor?: string;
+  actions?: React.ReactNode;
 }
 
 function isColorDark(color: string): boolean {
@@ -43,6 +44,7 @@ export default function Header({
   title,
   subtitle,
   bgColor = "#f5f5f7",
+  actions,
 }: HeaderProps) {
   const isDark = useMemo(() => isColorDark(bgColor), [bgColor]);
 
@@ -76,6 +78,7 @@ export default function Header({
           )}
         </div>
       </div>
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </header>
   );
 }
