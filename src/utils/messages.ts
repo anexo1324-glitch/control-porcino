@@ -4,7 +4,3 @@ export function tasksPendingMessage(count: number) {
 
   return { title, body };
 }
-
-export const NOTIFICATION_TAGS = {
-  PENDIENTES: "pendiente-tareas",
-};

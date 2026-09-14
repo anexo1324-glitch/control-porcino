@@ -842,7 +842,7 @@ export default function CerdaDetalle() {
                     onClick={() => {
                       if (tipo === "Parto") {
                         setMostrarForm(false);
-                        router.push(`/cerda/${id}/parto`);
+                        router.replace(`/cerda/${id}/parto`);
                         return;
                       }
                       agregarRegistro();

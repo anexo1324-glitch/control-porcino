@@ -1,14 +1,11 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useToast } from "@/hooks/useToast";
-import ToastContainer from "@/components/ToastContainer";
 import Header from "@/components/Header";
 import SummaryCard from "@/components/SummaryCard";
 import PageShell from "@/components/PageShell";
-import { sendPushNotification, sendServerPushNotification, requestNotificationPermission } from "@/utils/notifications";
-import { tasksPendingMessage, NOTIFICATION_TAGS } from '@/utils/messages';
+import { tasksPendingMessage } from '@/utils/messages';
 import { cargarCerdasDeStorage, contarTareasPendientes, generarTareasPendientes, calcularTareasPendientes, Cerda } from '@/utils/pendingTasks';
 
 const modulos = [
@@ -100,8 +97,6 @@ export default function Dashboard() {
     { nombre: 'Ajustes', ruta: '/ajustes', icon: '⚙️' },
   ];
 
-  const { toasts, addToast, removeToast } = useToast();
-  const [notificacionesPermitidas, setNotificacionesPermitidas] = useState(false);
   const [cerdas, setCerdas] = useState<Cerda[]>(() => {
     if (typeof window === "undefined") {
       return [];
@@ -112,79 +107,6 @@ export default function Dashboard() {
   const pendingTasks = useMemo(() => calcularTareasPendientes(cerdas), [cerdas]);
   const pendientes = pendingTasks.length;
   const cerdasCriticas = useMemo(() => obtenerCerdasCriticas(cerdas), [cerdas]);
-  const lastPendientesRef = useRef<number | null>(null);
-
-  function getTodayDate() {
-    return new Date().toISOString().split('T')[0];
-  }
-
-  function getDailyReminderKey(hour: number) {
-    return `tasksReminder-${hour}`;
-  }
-
-  function getPendingAlertDetails() {
-    return {
-      title: tasksPendingMessage(pendientes).title,
-      body: tasksPendingMessage(pendientes).body,
-      tasks: calcularTareasPendientes(cerdas),
-    };
-  }
-
-  async function trySendPendingNotification(count: number) {
-    if (!notificacionesPermitidas || count <= 0) return;
-    const { title, body } = tasksPendingMessage(count);
-    await sendPushNotification(title, {
-      body,
-      tag: NOTIFICATION_TAGS.PENDIENTES,
-    });
-    await sendServerPushNotification(title, body, '/tareas', NOTIFICATION_TAGS.PENDIENTES);
-  }
-
-  async function handleSendAlertsNow() {
-    if (pendientes <= 0) {
-      addToast('Sin alertas', 'No hay alertas pendientes para enviar.', 'info', 3000);
-      return;
-    }
-
-    const { title, body } = tasksPendingMessage(pendientes);
-    await sendPushNotification(title, {
-      body,
-      tag: NOTIFICATION_TAGS.PENDIENTES,
-    });
-    await sendServerPushNotification(title, body, '/tareas', NOTIFICATION_TAGS.PENDIENTES);
-    addToast('Enviado', `Se enviaron ${pendientes} alertas pendientes.`, 'success', 4000);
-  }
-
-  function shouldSendProgressNotification(current: number, previous: number | null) {
-    if (previous === null) return false;
-    return current > previous;
-  }
-
-  function scheduleDailyReminder(nextHour: number) {
-    const now = new Date();
-    const today = getTodayDate();
-    const target = new Date(now);
-    target.setHours(nextHour, 0, 0, 0);
-
-    if (target.getTime() <= now.getTime()) {
-      target.setDate(target.getDate() + 1);
-    }
-
-    const delay = target.getTime() - now.getTime();
-    return window.setTimeout(async () => {
-      const todayKey = getDailyReminderKey(nextHour);
-      if (localStorage.getItem(todayKey) !== getTodayDate() && pendientes > 0 && notificacionesPermitidas) {
-        const { title, body } = tasksPendingMessage(pendientes);
-        await sendPushNotification(title, {
-          body,
-          tag: NOTIFICATION_TAGS.PENDIENTES,
-        });
-        localStorage.setItem(todayKey, getTodayDate());
-      }
-      const next = nextHour === 7 ? 8 : 7;
-      scheduleDailyReminder(next);
-    }, delay);
-  }
 
   useEffect(() => {
     const handleStorage = () => {
@@ -195,60 +117,13 @@ export default function Dashboard() {
       setCerdas(cargarCerdasDeStorage());
     };
 
-    requestNotificationPermission().then((permitido) => {
-      if (permitido) {
-        setNotificacionesPermitidas(true);
-      }
-    });
-
     window.addEventListener("storage", handleStorage);
     window.addEventListener("focus", handleFocus);
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [addToast]);
-
-  useEffect(() => {
-    if (!notificacionesPermitidas) return;
-
-    if (lastPendientesRef.current === null) {
-      lastPendientesRef.current = pendientes;
-    }
-
-    if (shouldSendProgressNotification(pendientes, lastPendientesRef.current)) {
-      void trySendPendingNotification(pendientes);
-    }
-
-    lastPendientesRef.current = pendientes;
-
-    const now = new Date();
-    const today = getTodayDate();
-    const reminder7Key = getDailyReminderKey(7);
-    const reminder8Key = getDailyReminderKey(8);
-
-    if (now.getHours() >= 7 && localStorage.getItem(reminder7Key) !== today) {
-      if (pendientes > 0) {
-        void trySendPendingNotification(pendientes);
-        localStorage.setItem(reminder7Key, today);
-      }
-    }
-
-    if (now.getHours() >= 8 && localStorage.getItem(reminder8Key) !== today) {
-      if (pendientes > 0) {
-        void trySendPendingNotification(pendientes);
-        localStorage.setItem(reminder8Key, today);
-      }
-    }
-
-    const timer7 = scheduleDailyReminder(7);
-    const timer8 = scheduleDailyReminder(8);
-
-    return () => {
-      window.clearTimeout(timer7);
-      window.clearTimeout(timer8);
-    };
-  }, [pendientes, notificacionesPermitidas]);
+  }, []);
 
   // Evitar que el botón de retroceder del navegador salga del dashboard
   const totalCerdos = cerdas.length;
@@ -299,16 +174,6 @@ export default function Dashboard() {
           title="El Mirador" 
           subtitle="Sistema integral de producción porcina"
           bgColor="#f5f5f7"
-          actions={
-            <button
-              type="button"
-              onClick={handleSendAlertsNow}
-              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100"
-            >
-              <span className="text-lg">🚀</span>
-              <span>Enviar ahora</span>
-            </button>
-          }
         />
 
         <section className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-3 py-2 shadow-sm">
@@ -416,7 +281,7 @@ export default function Dashboard() {
         </button>
       )}
 
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      {/* Toasts removed */}
     </PageShell>
   );
 }
