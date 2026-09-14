@@ -6,8 +6,20 @@ import { useParams, useRouter } from "next/navigation";
 const DIAS_GESTACION = 114;
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
+function parsearFechaLocal(fecha: string): Date {
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  return new Date(anio, mes - 1, dia);
+}
+
+function fechaLocalISO(fecha: Date): string {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  return `${anio}-${mes}-${dia}`;
+}
+
 function formatearFechaCorta(fecha: string): string {
-  const d = new Date(fecha);
+  const d = parsearFechaLocal(fecha);
   const dia = d.getDate();
   const mes = MESES[d.getMonth()];
   const anio = d.getFullYear();
@@ -199,14 +211,14 @@ export default function CerdaDetalle() {
   }
 
   function calcularParto(fechaInseminacion: string) {
-    const f = new Date(fechaInseminacion);
+    const f = parsearFechaLocal(fechaInseminacion);
     f.setDate(f.getDate() + DIAS_GESTACION);
-    return f.toISOString().split("T")[0];
+    return fechaLocalISO(f);
   }
 
   function calcularDiasEntre(fechaInicio: string, fechaFin: string) {
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
+    const inicio = parsearFechaLocal(fechaInicio);
+    const fin = parsearFechaLocal(fechaFin);
     return Math.floor((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
   }
 
@@ -320,20 +332,18 @@ export default function CerdaDetalle() {
     }
 
     if (tipo === "Parto") {
-      const d = new Date(fecha);
-      const d21 = new Date(d);
-      d21.setDate(d21.getDate() + 21);
-      const d28 = new Date(d);
-      d28.setDate(d28.getDate() + 28);
-      const f21 = formatearFechaCorta(d21.toISOString().split("T")[0]);
-      const f28 = formatearFechaCorta(d28.toISOString().split("T")[0]);
+      const d = parsearFechaLocal(fecha);
+      const d21 = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 21);
+      const d28 = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 28);
+      const f21 = formatearFechaCorta(fechaLocalISO(d21));
+      const f28 = formatearFechaCorta(fechaLocalISO(d28));
       nuevo.mensaje = `Destete entre ${f21} y ${f28}`;
     }
 
     if (tipo === "Destete" && !ultimoDestete) {
-      const d = new Date(fecha);
+      const d = parsearFechaLocal(fecha);
       d.setDate(d.getDate() + 3);
-      const fechaCelo = formatearFechaCorta(d.toISOString().split("T")[0]);
+      const fechaCelo = formatearFechaCorta(fechaLocalISO(d));
       nuevo.mensaje = `Próxima a Celo ${fechaCelo}`;
     }
 
@@ -388,8 +398,10 @@ export default function CerdaDetalle() {
 
   const ultimaInseminacion = registros.find((r) => r.tipo === "Inseminación");
   const ultimoParto = registros.find((r) => r.tipo === "Parto");
+  const hoy = new Date();
+  const fechaHoy = fechaLocalISO(hoy);
   const diasGestacion = ultimaInseminacion
-    ? calcularDiasEntre(ultimaInseminacion.fecha, new Date().toISOString().split("T")[0])
+    ? calcularDiasEntre(ultimaInseminacion.fecha, fechaHoy)
     : 0;
   const porcentajeGestacion = Math.round((diasGestacion / DIAS_GESTACION) * 100);
   const diasFaltantes = Math.max(0, DIAS_GESTACION - diasGestacion);
@@ -820,7 +832,7 @@ export default function CerdaDetalle() {
                     type="date"
                     value={fecha}
                     onChange={(e) => setFecha(e.target.value)}
-                    max={tipo === "Parto" ? new Date().toISOString().split("T")[0] : undefined}
+                    max={tipo === "Parto" ? fechaLocalISO(new Date()) : undefined}
                     className="w-full max-w-[220px] mt-1 px-4 py-2 rounded-2xl bg-gray-100 border border-gray-300 text-black outline-none box-border"
                   />
                 </div>

@@ -16,10 +16,15 @@ type LoteEngorde = {
   activo?: boolean;
 };
 
+function parsearFechaLocal(fecha: string): Date {
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  return new Date(anio, mes - 1, dia);
+}
+
 function formatearFechaCorta(fecha: string) {
   if (!fecha) return "-";
 
-  const d = new Date(fecha);
+  const d = parsearFechaLocal(fecha);
   if (Number.isNaN(d.getTime())) return fecha;
 
   const meses = [
@@ -33,7 +38,7 @@ function formatearFechaCorta(fecha: string) {
 function calcularDiasDesdeNacimiento(fechaNacimiento: string) {
   if (!fechaNacimiento) return 0;
 
-  const nacimiento = new Date(fechaNacimiento);
+  const nacimiento = parsearFechaLocal(fechaNacimiento);
   if (Number.isNaN(nacimiento.getTime())) return 0;
 
   const hoy = new Date();

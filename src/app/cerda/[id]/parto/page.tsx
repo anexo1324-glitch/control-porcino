@@ -52,8 +52,8 @@ export default function PartoPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const hoy = new Date().toISOString().split("T")[0];
-    setFecha(hoy);
+    const hoy = new Date();
+    setFecha(`${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`);
   }, []);
 
   function guardarParto() {

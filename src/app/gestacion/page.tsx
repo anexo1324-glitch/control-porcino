@@ -51,8 +51,20 @@ export default function Gestacion() {
     "Dic",
   ];
 
+  function parsearFechaLocal(fecha: string): Date {
+    const [anio, mes, dia] = fecha.split("-").map(Number);
+    return new Date(anio, mes - 1, dia);
+  }
+
+  function fechaLocalISO(fecha: Date): string {
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const dia = String(fecha.getDate()).padStart(2, "0");
+    return `${anio}-${mes}-${dia}`;
+  }
+
   function formatearFechaCorta(fecha: string): string {
-    const d = new Date(fecha);
+    const d = parsearFechaLocal(fecha);
     const dia = d.getDate();
     const mes = MESES[d.getMonth()];
     const anio = d.getFullYear();
@@ -60,22 +72,21 @@ export default function Gestacion() {
   }
 
   function calcularParto(fechaInseminacion: string) {
-    const f = new Date(fechaInseminacion);
+    const f = parsearFechaLocal(fechaInseminacion);
     f.setDate(f.getDate() + DIAS_GESTACION);
-    return f.toISOString().split("T")[0];
+    return fechaLocalISO(f);
   }
 
   function calcularDiasEntre(fechaInicio: string, fechaFin: string) {
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
+    const inicio = parsearFechaLocal(fechaInicio);
+    const fin = parsearFechaLocal(fechaFin);
     return Math.floor((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
   }
 
   function calcularDiasParaParto(fechaInseminacion: string) {
-    const diasDesde = calcularDiasEntre(
-      fechaInseminacion,
-      new Date().toISOString().split("T")[0]
-    );
+    const hoy = new Date();
+    const fechaHoy = fechaLocalISO(hoy);
+    const diasDesde = calcularDiasEntre(fechaInseminacion, fechaHoy);
     return Math.max(0, DIAS_GESTACION - diasDesde);
   }
 
@@ -413,7 +424,7 @@ export default function Gestacion() {
       return;
     }
 
-    const llegadaDate = new Date(fecha);
+    const llegadaDate = parsearFechaLocal(fecha);
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     if (llegadaDate.getTime() > hoy.getTime()) {
@@ -607,7 +618,7 @@ export default function Gestacion() {
             const diasDesdeInseminacion = ultimaInseminacion
               ? calcularDiasEntre(
                   ultimaInseminacion.fecha,
-                  new Date().toISOString().split("T")[0]
+                  fechaLocalISO(new Date())
                 )
               : null;
             const diasParaParto = ultimaInseminacion
