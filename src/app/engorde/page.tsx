@@ -1,17 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import PageShell from "@/components/PageShell";
 
 type LoteEngorde = {
   codigoParto: string;
   cerdaId: string;
   fechaNacimiento: string;
+  horaInicio?: string;
+  tipoParto?: string;
+  asistidoPor?: string;
   lechones: number;
   vivos: number;
   muertos: number;
   pesoPromedio?: number;
   observaciones?: string;
+  observacionesLechones?: string;
+  raza?: string;
+  pesoCerda?: number;
+  estadoSalud?: string;
   createdAt?: string;
   activo?: boolean;
 };
@@ -50,17 +57,16 @@ function calcularDiasDesdeNacimiento(fechaNacimiento: string) {
 }
 
 export default function EngordePage() {
-  const [lotes, setLotes] = useState<LoteEngorde[]>([]);
-  const [busqueda, setBusqueda] = useState("");
+  const [lotes, setLotes] = useState<LoteEngorde[]>(() => {
+    if (typeof window === "undefined") return [];
 
-  useEffect(() => {
     try {
-      const datos = JSON.parse(localStorage.getItem("engorde-lotes") || "[]");
-      setLotes(datos);
-    } catch (e) {
-      setLotes([]);
+      return JSON.parse(localStorage.getItem("engorde-lotes") || "[]") as LoteEngorde[];
+    } catch {
+      return [];
     }
-  }, []);
+  });
+  const [busqueda, setBusqueda] = useState("");
 
   const cambiarEstadoLote = (codigoParto: string) => {
     const copia = lotes.map((lote) => {
@@ -78,24 +84,17 @@ export default function EngordePage() {
 
   const lotesActivos = lotes.filter((lote) => lote.activo !== false);
 
-  const lotesFiltrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
-
-    const resultados = lotes.filter((lote) => {
-      if (!texto) return true;
-
-      return (
-        lote.codigoParto.toLowerCase().includes(texto) ||
-        lote.cerdaId.toLowerCase().includes(texto) ||
-        lote.fechaNacimiento.toLowerCase().includes(texto)
-      );
-    });
-
-    const activos = resultados.filter((lote) => lote.activo !== false);
-    const inactivos = resultados.filter((lote) => lote.activo === false);
-
-    return [...activos, ...inactivos];
-  }, [lotes, busqueda]);
+  const textoBusqueda = busqueda.trim().toLowerCase();
+  const resultados = lotes.filter((lote) => !textoBusqueda ||
+    lote.codigoParto.toLowerCase().includes(textoBusqueda) ||
+    lote.cerdaId.toLowerCase().includes(textoBusqueda) ||
+    lote.fechaNacimiento.toLowerCase().includes(textoBusqueda)
+  );
+  const activosFiltrados = resultados.filter((lote) => lote.activo !== false);
+  const lotesFiltrados = [
+    ...activosFiltrados,
+    ...resultados.filter((lote) => lote.activo === false),
+  ];
 
   const totalLechones = lotesActivos.reduce((acc, lote) => acc + (lote.lechones || 0), 0);
   const totalVivos = lotesActivos.reduce((acc, lote) => acc + (lote.vivos || 0), 0);
@@ -149,7 +148,7 @@ export default function EngordePage() {
         </div>
 
         {lotesFiltrados.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
             Sin registros
           </div>
         ) : (
@@ -160,14 +159,14 @@ export default function EngordePage() {
               const activo = lote.activo !== false;
 
               return (
-                <article key={`${lote.codigoParto}-${lote.fechaNacimiento}-${index}`} className={`w-full relative overflow-hidden rounded-2xl border shadow-sm transition hover:shadow-md active:scale-[0.99] ${activo ? "border-gray-200 bg-white" : "border-red-300 bg-red-50"}`}> 
+                <article key={`${lote.codigoParto}-${lote.fechaNacimiento}-${index}`} className={`w-full relative overflow-hidden rounded-xl border shadow-sm transition hover:shadow-md active:scale-[0.99] ${activo ? "border-gray-200 bg-white" : "border-red-300 bg-red-50"}`}>
                   <div className={`absolute inset-y-0 left-0 w-2 rounded-r-3xl bg-gradient-to-b ${activo ? "from-emerald-500 to-lime-400" : "from-red-500 to-rose-400"}`} />
 
-                  <div className="relative z-10 p-2.5">
-                    <div className="relative flex flex-col gap-1.5 pl-3 pr-8">
+                  <div className="relative z-10 p-2">
+                    <div className="relative flex flex-col gap-1 pl-3 pr-8">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-2xl text-sm shrink-0 ${activo ? "bg-emerald-100" : "bg-red-100"}`}>🐷</div>
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-xl text-sm shrink-0 ${activo ? "bg-emerald-100" : "bg-red-100"}`}>🐷</div>
                           <div className="min-w-0">
                             <h2 className="text-base font-bold text-slate-950">{codigo}</h2>
                             <p className="text-gray-500 text-[11px] mt-0.5">Lote de engorde</p>
@@ -190,38 +189,29 @@ export default function EngordePage() {
                         </div>
                       </div>
 
-                      <div className="space-y-1.5 text-[10px] text-gray-600">
-                        <div className="flex items-center gap-1.5">
-                          <span>📅</span>
-                          <span>Nacimiento: {formatearFechaCorta(lote.fechaNacimiento)}</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-600">
+                          <span>📅 {formatearFechaCorta(lote.fechaNacimiento)}</span>
+                          <span>⏱ {lote.horaInicio || "Sin hora"}</span>
+                          <span>🐖 Madre: {lote.cerdaId}</span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className={`rounded-2xl border p-1.5 ${activo ? "border-slate-100 bg-emerald-50" : "border-red-100 bg-red-100"}`}>
-                            <p className={`text-[9px] uppercase tracking-[0.18em] font-semibold ${activo ? "text-emerald-700" : "text-red-700"}`}>Días actuales</p>
-                            <p className={`mt-0.5 text-sm font-black ${activo ? "text-emerald-900" : "text-red-900"}`}>{dias}</p>
-                          </div>
-
-                          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-1.5">
-                            <p className="text-[9px] uppercase tracking-[0.18em] text-slate-500 font-semibold">Lechones</p>
-                            <p className="mt-0.5 text-sm font-black text-slate-900">{lote.lechones}</p>
-                          </div>
+                        <div className="grid grid-cols-4 gap-1 text-center">
+                          <div className={`rounded-lg p-1 ${activo ? "bg-emerald-50" : "bg-red-100"}`}><p className="text-[9px] text-slate-500">Días</p><p className="text-sm font-black text-emerald-900">{dias}</p></div>
+                          <div className="rounded-lg bg-slate-50 p-1"><p className="text-[9px] text-slate-500">Total</p><p className="text-sm font-black text-slate-900">{lote.lechones}</p></div>
+                          <div className="rounded-lg bg-emerald-50 p-1"><p className="text-[9px] text-slate-500">Vivos</p><p className="text-sm font-black text-emerald-800">{lote.vivos}</p></div>
+                          <div className="rounded-lg bg-red-50 p-1"><p className="text-[9px] text-slate-500">Muertos</p><p className="text-sm font-black text-red-700">{lote.muertos}</p></div>
                         </div>
 
-                        <div className={`rounded-2xl border p-1.5 ${activo ? "bg-emerald-50 border-emerald-100" : "bg-red-100 border-red-200"}`}>
-                          <p className={`text-[9px] uppercase tracking-[0.18em] font-semibold ${activo ? "text-emerald-700" : "text-red-700"}`}>ID madre</p>
-                          <p className="mt-0.5 text-xs font-semibold text-slate-900">{lote.cerdaId}</p>
+                        <div className="flex flex-wrap gap-1 text-[10px]">
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-800">{lote.tipoParto || "Parto"}</span>
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{lote.asistidoPor || "Sin asistencia"}</span>
+                          {lote.pesoPromedio != null && <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">{lote.pesoPromedio} kg/lechón</span>}
+                          {lote.estadoSalud && <span className="rounded-full bg-sky-50 px-2 py-1 text-sky-800">Cerda: {lote.estadoSalud}</span>}
                         </div>
 
-                        <div className="rounded-2xl border p-1.5 bg-slate-50 border-slate-200">
-                          <div className="flex items-center justify-between text-[9px]">
-                            <span className="text-slate-500 uppercase tracking-[0.18em]">Vivos / Muertos</span>
-                            <span className="font-bold text-slate-900">{lote.vivos} / {lote.muertos}</span>
-                          </div>
-                        </div>
+                        {(lote.observaciones || lote.observacionesLechones) && <p className="truncate rounded-lg bg-slate-50 px-2 py-1 text-[10px] text-slate-600">📝 {lote.observacionesLechones || lote.observaciones}</p>}
                       </div>
                     </div>
-                  </div>
                 </article>
               );
             })}

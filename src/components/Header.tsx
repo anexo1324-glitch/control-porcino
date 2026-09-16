@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import Image from "next/image";
 
 interface HeaderProps {
   title: string;
@@ -62,9 +63,13 @@ export default function Header({
         <div
           className={`flex h-16 w-16 items-center justify-center rounded-3xl ${iconBgColor} shadow-sm`}
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-2xl text-white">
-            🐷
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Logo Porcícola El Mirador"
+            width={48}
+            height={48}
+            className="h-12 w-12 rounded-2xl object-contain"
+          />
         </div>
         <div>
           <p className={`text-sm font-semibold uppercase tracking-[0.25em] ${subtitleColor}`}>

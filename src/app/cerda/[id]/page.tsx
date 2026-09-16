@@ -412,75 +412,24 @@ export default function CerdaDetalle() {
     <main className="min-h-screen bg-[#f5f5f7] p-3 pb-10 overflow-x-hidden">
       {selectedRegistro && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedRegistro(null)}>
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setSelectedRegistro(null)} className="absolute right-4 top-4 text-slate-500 hover:text-slate-900">✕</button>
-            <h3 className="text-lg font-bold text-black">Detalle de Parto</h3>
-            <div className="mt-3 text-sm text-slate-700 space-y-2">
-              <div className="rounded-2xl bg-slate-100 p-3">
-                <div className="flex justify-between">
-                  <span className="font-semibold">Fecha</span>
-                  <span>{formatearFechaCorta(selectedRegistro.fecha)}</span>
-                </div>
-                {selectedRegistro.lechones !== undefined && (
-                  <div className="flex justify-between mt-2">
-                    <span className="font-semibold">Lechones</span>
-                    <span>{selectedRegistro.lechones}</span>
-                  </div>
-                )}
-                {(selectedRegistro.vivos !== undefined || selectedRegistro.muertos !== undefined) && (
-                  <div className="flex justify-between mt-2">
-                    <span className="font-semibold">Vivos / Muertos</span>
-                    <span>{`${selectedRegistro.vivos || 0} vivos / ${selectedRegistro.muertos || 0} muertos`}</span>
-                  </div>
-                )}
-                {selectedRegistro.pesoPromedio !== undefined && (
-                  <div className="flex justify-between mt-2">
-                    <span className="font-semibold">Peso promedio</span>
-                    <span>{`${selectedRegistro.pesoPromedio} kg`}</span>
-                  </div>
-                )}
-                {selectedRegistro.mensaje && (
-                  <div className="mt-3">
-                    <span className="font-semibold">Mensaje</span>
-                    <p className="mt-1 text-sm text-slate-700">{selectedRegistro.mensaje}</p>
-                  </div>
-                )}
-                {selectedRegistro.observaciones && (
-                  <div className="mt-3">
-                    <span className="font-semibold">Observaciones</span>
-                    <p className="mt-1 text-sm text-slate-700">{selectedRegistro.observaciones}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Modal para mostrar detalles del registro recien creado */}
-      {selectedRegistro && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedRegistro(null)}>
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setSelectedRegistro(null)} className="absolute right-4 top-4 text-slate-500 hover:text-slate-900">✕</button>
-            <h3 className="text-lg font-bold text-black">Detalle de registro</h3>
-            <div className="mt-3 text-sm text-slate-700">
-              <div className="rounded-2xl bg-slate-100 p-3">
-                <p className="font-semibold">Tipo</p>
-                <p className="mt-1">{selectedRegistro.tipo}</p>
-                <p className="font-semibold mt-3">Fecha</p>
-                <p className="mt-1">{selectedRegistro.fecha}</p>
-                {selectedRegistro.lechones !== undefined && (
-                  <>
-                    <p className="font-semibold mt-3">Lechones</p>
-                    <p className="mt-1">{selectedRegistro.lechones}</p>
-                  </>
-                )}
-                {selectedRegistro.observaciones && (
-                  <>
-                    <p className="font-semibold mt-3">Observaciones</p>
-                    <p className="mt-1">{selectedRegistro.observaciones}</p>
-                  </>
-                )}
-              </div>
+            <h3 className="text-lg font-bold text-black">Resumen del parto</h3>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-700 sm:grid-cols-3">
+              <div className="rounded-lg bg-emerald-50 p-2"><b>Lote</b><p>{selectedRegistro.codigoParto || "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Fecha</b><p>{selectedRegistro.fecha ? formatearFechaCorta(selectedRegistro.fecha) : "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Hora</b><p>{selectedRegistro.horaInicio || "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Tipo</b><p>{selectedRegistro.tipoParto || "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Asistido por</b><p>{selectedRegistro.asistidoPor || "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Total nacidos</b><p>{selectedRegistro.lechones ?? "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Vivos</b><p>{selectedRegistro.vivos ?? "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Muertos</b><p>{selectedRegistro.muertos ?? "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Peso promedio</b><p>{selectedRegistro.pesoPromedio != null ? `${selectedRegistro.pesoPromedio} kg` : "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Raza</b><p>{selectedRegistro.raza || "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Peso de cerda</b><p>{selectedRegistro.pesoCerda != null ? `${selectedRegistro.pesoCerda} kg` : "-"}</p></div>
+              <div className="rounded-lg bg-slate-100 p-2"><b>Estado de salud</b><p>{selectedRegistro.estadoSalud || "-"}</p></div>
+              <div className="col-span-2 rounded-lg bg-slate-100 p-2 sm:col-span-3"><b>Observaciones del parto</b><p className="mt-1 break-words">{selectedRegistro.observaciones || "-"}</p></div>
+              <div className="col-span-2 rounded-lg bg-slate-100 p-2 sm:col-span-3"><b>Observaciones de los lechones</b><p className="mt-1 break-words">{selectedRegistro.observacionesLechones || "-"}</p></div>
             </div>
           </div>
         </div>
@@ -540,7 +489,7 @@ export default function CerdaDetalle() {
                   className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-200"
                   aria-label="Ver información de la cerda"
                 >
-                  📃
+                  📋
                 </button>
               </div>
               <div className="flex gap-2 mt-1 text-xs">
@@ -770,11 +719,11 @@ export default function CerdaDetalle() {
                                 {r.tipo === 'Parto' && (
                                   <button
                                     data-swipe-ignore="true"
-                                    onClick={(e) => { e.stopPropagation(); setSelectedRegistro(r); }}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedRegistro(selectedRegistro === r ? null : r); }}
                                     className="text-slate-600 text-sm"
                                     aria-label={`Ver detalles de parto ${r.fecha}`}
                                   >
-                                    📃
+                                    📋
                                   </button>
                                 )}
                                 <p className="text-gray-500 text-[11px]">{formatearFechaCorta(r.fecha)}</p>
@@ -782,6 +731,23 @@ export default function CerdaDetalle() {
                             </div>
                             {r.mensaje && <p className="text-gray-700 text-[11px] mt-1 truncate">{r.mensaje}</p>}
                             {r.descripcion && <p className="text-gray-600 text-[11px] italic mt-1 truncate">{r.descripcion}</p>}
+                            {selectedRegistro === r && r.tipo === "Parto" && (
+                              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-emerald-50 p-2 text-[10px] text-slate-700 sm:grid-cols-4">
+                                <span><b>Código:</b> {r.codigoParto || "-"}</span>
+                                <span><b>Total:</b> {r.lechones ?? "-"}</span>
+                                <span><b>Vivos:</b> {r.vivos ?? "-"}</span>
+                                <span><b>Muertos:</b> {r.muertos ?? "-"}</span>
+                                <span><b>Hora:</b> {r.horaInicio || "-"}</span>
+                                <span><b>Tipo:</b> {r.tipoParto || "-"}</span>
+                                <span><b>Asistido:</b> {r.asistidoPor || "-"}</span>
+                                <span><b>Peso lechón:</b> {r.pesoPromedio != null ? `${r.pesoPromedio} kg` : "-"}</span>
+                                <span><b>Raza:</b> {r.raza || "-"}</span>
+                                <span><b>Peso cerda:</b> {r.pesoCerda != null ? `${r.pesoCerda} kg` : "-"}</span>
+                                <span><b>Estado:</b> {r.estadoSalud || "-"}</span>
+                                <span className="col-span-2 sm:col-span-4"><b>Observaciones:</b> {r.observaciones || "-"}</span>
+                                <span className="col-span-2 sm:col-span-4"><b>Observaciones lechones:</b> {r.observacionesLechones || "-"}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
