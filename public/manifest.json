@@ -3,7 +3,7 @@
   "short_name": "PorcinoApp",
   "description": "Sistema de gestión porcino inteligente",
 
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
 
   "display": "standalone",
