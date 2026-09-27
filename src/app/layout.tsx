@@ -1,4 +1,5 @@
 import "./globals.css";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 export const metadata = {
   title: "Control Porcino",
@@ -53,6 +54,7 @@ export default function RootLayout({
       <body className="min-h-screen">
 
         {children}
+        <ServiceWorkerRegistration />
 
       </body>
     </html>
