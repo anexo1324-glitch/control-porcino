@@ -1,13 +1,16 @@
 /** @type {import('next').NextConfig} */
-
+ 
 const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-  customWorkerDir: "service-worker",
+  customWorkerDir: "src/service-worker",
   cacheOnFrontEndNav: true,
   dynamicStartUrl: false,
+  fallbacks: {
+    document: "/offline.html",
+  },
   runtimeCaching: [
     {
       urlPattern: ({ request }) => request.destination === "document",
@@ -40,18 +43,29 @@ const withPWA = require("next-pwa")({
         cacheableResponse: { statuses: [0, 200] },
       },
     },
+    // Cubre las navegaciones internas del App Router (RSC fetch) y
+    // cualquier otra petición al mismo dominio que no calzó arriba.
+    {
+      urlPattern: ({ url }) => url.origin === self.location.origin,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "others",
+        networkTimeoutSeconds: 3,
+        cacheableResponse: { statuses: [0, 200] },
+      },
+    },
   ],
 });
-
+ 
 const nextConfig = {
   reactStrictMode: true,
-
+ 
   // 🔥 IMPORTANTE: evitar conflicto con Turbopack
   turbopack: {},
-
+ 
   webpack: (config) => {
     return config;
   },
 };
-
+ 
 module.exports = withPWA(nextConfig);
